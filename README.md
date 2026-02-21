@@ -1,6 +1,6 @@
-# VitaBlueprint
+# DigitalTwin For Medical Devices
 
-**VitaBlueprint** is a professional, deterministic medical device system design and compliance platform. It allows engineers to transition seamlessly from structured requirements to validated system architectures and digital twin simulations, ending with one-click code generation for embedded targets.
+**Digital Twin** is a professional, deterministic medical device system design and compliance tool. It allows engineers to transition seamlessly from structured requirements to validated system architectures and digital twin simulations, ending with one-click code generation for embedded targets.
 
 ## 🚀 Key Features
 
