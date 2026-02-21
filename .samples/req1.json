@@ -1,0 +1,23 @@
+{
+  "id": "REQ-VENT-001",
+  "title": "Provide controlled ventilation",
+  "description": "The ventilator shall provide controlled mechanical ventilation to the patient with configurable modes.",
+  "parent_id": null,
+  "type": "functional",
+  "priority": "SHALL",
+  "status": "Approved",
+  "subsystem": "Ventilator",
+  "parameter": "Ventilation",
+  "unit": null,
+  "interface": null,
+  "protocol": null,
+  "hazard": null,
+  "severity": null,
+  "probability": null,
+  "standard": null,
+  "clause": null,
+  "verification": {
+    "method": "test",
+    "description": "Integration test of ventilation modes with test lung."
+  }
+}

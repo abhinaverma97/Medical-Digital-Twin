@@ -1,0 +1,27 @@
+{
+  "id": "REQ-VENT-004",
+  "title": "Prevent barotrauma",
+  "description": "The ventilator shall avoid delivering excessive airway pressure that could cause barotrauma.",
+  "parent_id": "REQ-VENT-001",
+  "type": "safety",
+  "priority": "SHALL",
+  "status": "Approved",
+  "subsystem": "PressureControl",
+  "parameter": "Pressure",
+  "min_value": null,
+  "max_value": 40.0,
+  "unit": "cmH2O",
+  "tolerance": null,
+  "response_time_ms": null,
+  "interface": null,
+  "protocol": null,
+  "hazard": "Barotrauma from excessive airway pressure",
+  "severity": "High",
+  "probability": "Occasional",
+  "standard": "ISO 14971",
+  "clause": "Risk assessment and mitigation",
+  "verification": {
+    "method": "analysis",
+    "description": "Risk analysis and verification that pressure limits and alarms mitigate barotrauma risk."
+  }
+}

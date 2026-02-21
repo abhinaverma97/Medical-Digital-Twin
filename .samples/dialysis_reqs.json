@@ -1,0 +1,74 @@
+[
+    {
+        "id": "REQ-DIAL-001",
+        "title": "Perform extracorporeal blood purification",
+        "description": "The dialysis machine shall provide continuous extracorporeal blood purification with configurable flow rates.",
+        "parent_id": null,
+        "type": "functional",
+        "priority": "SHALL",
+        "status": "Approved",
+        "subsystem": "Extracorporeal Module",
+        "parameter": "PurificationRate",
+        "verification": {
+            "method": "test",
+            "description": "Verification of blood and dialysate flow control accuracy."
+        }
+    },
+    {
+        "id": "REQ-DIAL-002",
+        "title": "Blood Flow Rate range",
+        "description": "The system shall support Blood Flow Rate (BFR) between 50 and 600 mL/min.",
+        "parent_id": "REQ-DIAL-001",
+        "type": "performance",
+        "priority": "SHALL",
+        "status": "Approved",
+        "subsystem": "Blood Circuit",
+        "parameter": "BloodFlowRate",
+        "min_value": 50.0,
+        "max_value": 600.0,
+        "unit": "mL/min",
+        "verification": {
+            "method": "test",
+            "description": "BFR pump accuracy test."
+        }
+    },
+    {
+        "id": "REQ-DIAL-003",
+        "title": "Transmembrane Pressure Safety",
+        "description": "The system shall monitor Transmembrane Pressure (TMP) and trigger an alarm if it exceeds safety limits (default 500 mmHg).",
+        "parent_id": "REQ-DIAL-001",
+        "type": "safety",
+        "priority": "SHALL",
+        "status": "Approved",
+        "subsystem": "Safety/Alarm System",
+        "parameter": "TMP",
+        "max_value": 500.0,
+        "unit": "mmHg",
+        "hazard": "Membrane Rupture / Back-filtration",
+        "severity": "Critical",
+        "probability": "Occasional",
+        "standard": "ISO 60601-2-16",
+        "clause": "201.12.4.104",
+        "verification": {
+            "method": "simulation",
+            "description": "Simulate high TMP and verify alarm trigger and pump stop."
+        }
+    },
+    {
+        "id": "REQ-DIAL-004",
+        "title": "Blood-Dialysate Interface",
+        "description": "The Blood Circuit shall interface with the Dialysate Circuit through a high-flux dialyzer membrane.",
+        "parent_id": "REQ-DIAL-001",
+        "type": "interface",
+        "priority": "SHALL",
+        "status": "Approved",
+        "subsystem": "Extracorporeal Module",
+        "parameter": "MembraneExchange",
+        "interface": "Blood Circuit -> Dialysate Circuit",
+        "protocol": "Diffusion/Ultrafiltration",
+        "verification": {
+            "method": "inspection",
+            "description": "Verification of dialyzer membrane specifications and interface connections."
+        }
+    }
+]

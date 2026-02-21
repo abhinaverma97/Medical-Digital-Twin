@@ -1,0 +1,27 @@
+# Python
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+backend/artifacts/*.dot
+backend/artifacts/*.svg
+
+# Node
+node_modules/
+frontend/dist/
+frontend/node_modules/
+
+# IDEs
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+generated_repos/
+.gemini/
+.agent/
+brain/

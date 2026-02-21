@@ -1,0 +1,27 @@
+{
+  "id": "REQ-VENT-005",
+  "title": "Patient interface",
+  "description": "Provide a patient interface channel from Ventilator to Patient with appropriate connectors.",
+  "parent_id": "REQ-VENT-001",
+  "type": "interface",
+  "priority": "SHOULD",
+  "status": "Approved",
+  "subsystem": "PatientInterface",
+  "parameter": "Airflow",
+  "min_value": null,
+  "max_value": null,
+  "unit": null,
+  "tolerance": null,
+  "response_time_ms": null,
+  "interface": "Ventilator -> Patient",
+  "protocol": "Physical connection (ISO tubing)",
+  "hazard": null,
+  "severity": null,
+  "probability": null,
+  "standard": "ISO 80601-2-12",
+  "clause": "Connectors and tubing",
+  "verification": {
+    "method": "inspection",
+    "description": "Mechanical inspection and compatibility test of connectors and tubing."
+  }
+}

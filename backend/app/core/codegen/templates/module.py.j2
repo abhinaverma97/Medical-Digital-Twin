@@ -1,0 +1,30 @@
+"""
+Auto-generated module: {{ subsystem }}
+
+DO NOT EDIT MANUALLY.
+Generated from validated system design.
+"""
+
+class {{ subsystem.replace(" ", "") }}:
+    def __init__(self):
+{% for inp in inputs %}
+        self.{{ inp }} = None
+{% endfor %}
+{% for out in outputs %}
+        self.{{ out }} = None
+{% endfor %}
+
+    def step(self):
+        """
+        Execute one system step.
+        """
+        # TODO: Implement subsystem behavior
+        pass
+
+    def verify(self):
+        """
+        Verification hooks generated from requirements.
+        """
+{% for req in requirements %}
+        # {{ req.id }}: {{ req.title }}
+{% endfor %}

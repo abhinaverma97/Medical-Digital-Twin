@@ -1,0 +1,113 @@
+[
+    {
+        "id": "REQ-POX-001",
+        "title": "Measure SpO2 and Pulse Rate",
+        "description": "The pulse oximeter shall accurately measure and display functional oxygen saturation (SpO2) and pulse rate.",
+        "parent_id": null,
+        "type": "functional",
+        "priority": "SHALL",
+        "status": "Approved",
+        "subsystem": "PulseOximeter",
+        "parameter": "OximetryMetrics",
+        "unit": null,
+        "verification": {
+            "method": "test",
+            "description": "Verify measurement accuracy against calibrated simulator."
+        }
+    },
+    {
+        "id": "REQ-POX-002",
+        "title": "SpO2 measurement range",
+        "description": "The device shall measure SpO2 in the range of 70% to 100%.",
+        "parent_id": "REQ-POX-001",
+        "type": "performance",
+        "priority": "SHALL",
+        "status": "Approved",
+        "subsystem": "OpticalSensing",
+        "parameter": "SpO2",
+        "min_value": 70.0,
+        "max_value": 100.0,
+        "unit": "%",
+        "tolerance": 2.0,
+        "verification": {
+            "method": "test",
+            "description": "Bench test with SpO2 simulator across full range."
+        }
+    },
+    {
+        "id": "REQ-POX-003",
+        "title": "Pulse rate range",
+        "description": "The device shall measure pulse rate in the range of 30 to 250 bpm.",
+        "parent_id": "REQ-POX-001",
+        "type": "performance",
+        "priority": "SHALL",
+        "status": "Approved",
+        "subsystem": "SignalProcessing",
+        "parameter": "PulseRate",
+        "min_value": 30.0,
+        "max_value": 250.0,
+        "unit": "bpm",
+        "tolerance": 3.0,
+        "verification": {
+            "method": "test",
+            "description": "Bench test with pulse rate simulator across full range."
+        }
+    },
+    {
+        "id": "REQ-POX-004",
+        "title": "Low SpO2 Alarm",
+        "description": "The device shall trigger an alarm if SpO2 falls below a configurable threshold (default 90%).",
+        "parent_id": "REQ-POX-001",
+        "type": "safety",
+        "priority": "SHALL",
+        "status": "Approved",
+        "subsystem": "Alarms",
+        "parameter": "SpO2",
+        "min_value": 90.0,
+        "max_value": null,
+        "unit": "%",
+        "hazard": "Hypoxemia",
+        "severity": "High",
+        "probability": "Occasional",
+        "standard": "ISO 14971",
+        "clause": "4.3",
+        "verification": {
+            "method": "simulation",
+            "description": "Simulate low SpO2 and verify alarm trigger."
+        }
+    },
+    {
+        "id": "REQ-POX-005",
+        "title": "Optical Sensor Interface",
+        "description": "Connect the Optical Sensing subsystem to Signal Processing via an analog-to-digital interface.",
+        "parent_id": "REQ-POX-001",
+        "type": "interface",
+        "priority": "SHALL",
+        "status": "Approved",
+        "subsystem": "OpticalSensing",
+        "parameter": "RawSignal",
+        "interface": "OpticalSensing -> SignalProcessing",
+        "protocol": "ADC",
+        "verification": {
+            "method": "inspection",
+            "description": "Verify schematic design and signal path."
+        }
+    },
+    {
+        "id": "REQ-POX-006",
+        "title": "Processed Data Interface",
+        "description": "Transmit processed SpO2 and Pulse Rate data from Signal Processing to Display.",
+        "parent_id": "REQ-POX-001",
+        "type": "interface",
+        "priority": "SHALL",
+        "status": "Approved",
+        "subsystem": "SignalProcessing",
+        "parameter": "Metrics",
+        "interface": "SignalProcessing -> Display",
+        "protocol": "UART",
+        "verification": {
+            "method": "test",
+            "description": "Verify data transmission protocol and content."
+        }
+    }
+]

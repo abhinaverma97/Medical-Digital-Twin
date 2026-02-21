@@ -1,0 +1,18 @@
+import axios from 'axios'
+
+const client = axios.create({
+  baseURL: '/',
+  headers: { 'Content-Type': 'application/json' }
+})
+
+export const addRequirement = (r) => client.post('/requirements/', r)
+export const buildDesign = (deviceType) => client.post('/design/build/', null, { params: { device_type: deviceType } })
+export const runSimulation = (deviceType, steps = 10, fidelity = 'L2') =>
+  client.post('/simulation/run/', null, { params: { device_type: deviceType, steps, fidelity } })
+export const runFaultySimulation = (deviceType, parameter, bias, steps = 10) =>
+  client.post('/simulation/fault/', null, { params: { device_type: deviceType, parameter, bias, steps } })
+export const generateCodeRepo = () => client.post('/codegen/generate/')
+export const getTraceability = () => client.get('/export/traceability/').then(r => r.data)
+export const validateDesign = () => client.post('/export/validate/')
+
+export default client
