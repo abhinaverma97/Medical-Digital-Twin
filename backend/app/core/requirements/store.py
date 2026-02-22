@@ -13,3 +13,6 @@ class RequirementStore:
             r for r in self._requirements.values()
             if r.subsystem == subsystem
         ]
+
+    def clear(self):
+        self._requirements = {}

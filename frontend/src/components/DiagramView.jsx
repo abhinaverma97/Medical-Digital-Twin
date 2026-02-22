@@ -48,7 +48,7 @@ export default function DiagramView({ deviceType }) {
         </div>
       )}
 
-      {diagrams && diagrams.logical && diagrams.hld && (
+      {diagrams && diagrams.hld && (
         <div className="space-y-4">
           <div className="flex gap-2 p-1 bg-slate-900 rounded-lg w-fit border border-slate-800">
             <button
@@ -63,16 +63,35 @@ export default function DiagramView({ deviceType }) {
             >
               High-Level (HLD)
             </button>
+            {diagrams.lld && (
+              <button
+                onClick={() => setActiveTab('lld')}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'lld' ? 'bg-slate-800 text-sky-400' : 'text-slate-500 hover:text-slate-300'}`}
+              >
+                Low-Level (LLD)
+              </button>
+            )}
           </div>
 
-          <div className="bg-slate-950/50 rounded-2xl border border-slate-800 p-6 flex justify-center">
+          <div className={`rounded-2xl border border-slate-800 p-6 flex justify-center transition-colors duration-500 ${activeTab === 'lld' ? 'bg-[#1E293B]' : 'bg-slate-950/50'}`}>
             <div
-              className="max-w-full overflow-auto invert opacity-90 transition-all duration-500"
+              className={`max-w-full overflow-auto transition-all duration-500 ${activeTab === 'lld' ? '' : 'invert opacity-90'}`}
               dangerouslySetInnerHTML={{
-                __html: (activeTab === 'logical' ? diagrams.logical.svg : diagrams.hld.svg) || '<p>No SVG generated</p>'
+                __html: diagrams[activeTab]?.svg || '<p class="text-slate-500">Generating schematic...</p>'
               }}
             />
           </div>
+
+          {activeTab === 'lld' && (
+            <div className="flex gap-4 justify-center">
+              <span className="flex items-center gap-1.5 text-xs text-slate-400 font-mono">
+                <span className="w-2 h-2 rounded-full bg-sky-400"></span> Communication Bus
+              </span>
+              <span className="flex items-center gap-1.5 text-xs text-slate-400 font-mono">
+                <span className="w-2 h-2 rounded-full bg-slate-100"></span> Physical Component
+              </span>
+            </div>
+          )}
         </div>
       )}
 
