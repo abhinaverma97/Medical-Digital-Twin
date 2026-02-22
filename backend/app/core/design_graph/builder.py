@@ -36,13 +36,21 @@ class DesignGraphBuilder:
             
             # Injection logic for safety
             if "Control" in subsystem or "Safety" in subsystem:
-                components = list(set(components + safety_components))
+                if components and isinstance(components[0], dict):
+                    existing = {c["name"] for c in components}
+                    for sc in safety_components:
+                        if sc not in existing:
+                            components.append({"name": sc, "category": "Hardware (Electronic)"})
+                else:
+                    components = list(set(components + safety_components))
             
-            # Filter details and software relevant to ONLY this subsystem
-            # (In a real system, we might have more complex mapping, but let's keep it simple)
-            subsystem_details = {c: all_details[c] for c in components if c in all_details}
+            # Filter details
+            if components and isinstance(components[0], dict):
+                subsystem_details = {c["name"]: all_details.get(c["name"], {}) for c in components}
+            else:
+                subsystem_details = {c: all_details.get(c, {}) for c in components}
             
-            # For demo: map software based on keyword match
+            # Map software
             subsystem_software = [s for s in software_stack if subsystem.lower() in s.get("name", "").lower() or subsystem.lower() in s.get("layer", "").lower()]
 
             node = self._create_subsystem_node(subsystem, reqs, components, subsystem_details, subsystem_software)

@@ -1,14 +1,11 @@
 import os
+import json
+import requests
 from fastapi import APIRouter
 from ..core.devices.class2.ventilator import Ventilator
 from ..core.devices.class1.pulse_oximeter import PulseOximeter
 from ..core.devices.class3.dialysis import DialysisMachine
 from ..core.design_graph.builder import DesignGraphBuilder
-from ..core.visualization.hld import HLDGenerator
-from ..core.visualization.lld import LLDGenerator
-from ..core.visualization.logical import LogicalDiagramGenerator
-from ..core.visualization.safety import SafetyDiagramGenerator
-from ..core.visualization.renderer import DiagramRenderer
 from .requirements import store
 
 router = APIRouter()
@@ -35,43 +32,153 @@ def build_design(device_type: str = "ventilator"):
     builder = DesignGraphBuilder(device)
     design_graph = builder.build(requirements)
 
-    # Generate diagrams
-    hld = HLDGenerator(design_graph).build()
-    lld = LLDGenerator(design_graph).build()
-    logical = LogicalDiagramGenerator(design_graph, requirements).build()
+    architecture_nodes = []
+    for name, node in design_graph.subsystems.items():
+        architecture_nodes.append({
+            "id": name,
+            "name": name,
+            "type": "subsystem",
+            "components": node.components if hasattr(node, "components") else [],
+            "detailed_components": node.detailed_components if hasattr(node, "detailed_components") else {},
+            "software_stack": node.software_stack if hasattr(node, "software_stack") else []
+        })
 
-    # Render diagrams
-    renderer = DiagramRenderer()
-    hld_path = "backend/artifacts/hld"
-    lld_path = "backend/artifacts/lld"
-    logical_path = "backend/artifacts/logical"
-    
-    renderer.render(hld, hld_path, format="svg")
-    renderer.render(lld, lld_path, format="svg")
-    renderer.render(logical, logical_path, format="svg")
-    
-    def get_svg(base_path):
-        try:
-            svg_file = f"{base_path}.svg"
-            if os.path.exists(svg_file):
-                with open(svg_file, "r") as f:
-                    return f.read()
-            return f"<svg><text y='20' fill='red'>Rendering missing: {base_path}</text></svg>"
-        except Exception as e:
-            return f"<svg><text y='20' fill='red'>Error: {str(e)}</text></svg>"
-
-    hld_svg = get_svg(hld_path)
-    lld_svg = get_svg(lld_path)
-    logical_svg = get_svg(logical_path)
+    interfaces_list = [
+        {"source": i.source, "target": i.target, "signal": i.signal} for i in design_graph.interfaces
+    ]
 
     return {
         "device": device.device_name,
         "class": device.device_class,
         "subsystems": list(design_graph.subsystems),
-        "hld": {"svg": hld_svg},
-        "lld": {"svg": lld_svg},
-        "logical": {"svg": logical_svg},
-        "interfaces": [
-            {"source": i.source, "target": i.target, "signal": i.signal} for i in design_graph.interfaces
-        ]
+        "raw": {
+            "architecture": architecture_nodes,
+            "interfaces": interfaces_list
+        },
+        "interfaces": interfaces_list
     }
+
+@router.post("/generate-details")
+def generate_design_details(device_type: str = "ventilator"):
+    reqs = store.get_all()
+    reqs_text = "\n".join([f"- [{r.id}] {r.title}: {r.description}" for r in reqs])
+    
+    prompt = f"""
+    You are an expert Systems Engineer designing a Class II/III Medical Device: {device_type.upper()}.
+    
+    Here are the system requirements:
+    {reqs_text}
+    
+    Generate a comprehensive, highly technical system design specification in STRICT JSON format. 
+    DO NOT wrap the response in markdown blocks like ```json. Return ONLY valid JSON.
+    
+    The JSON must follow this exact structure:
+    {{
+      "Architecture": {{
+        "SystemOverview": "Detailed text...",
+        "Subsystems": [
+           {{"name": "...", "components": ["...", "..."]}}
+        ],
+        "MechanicalAssemblies": [
+           {{"name": "...", "details": "..."}}
+        ],
+        "MechanicalOverview": "Text..."
+      }},
+      "Hardware": {{
+        "ComponentsTable": [
+           {{"partNumber": "...", "manufacturer": "...", "package": "...", "specifications": "...", "cost": "..."}}
+        ],
+        "PowerTree": [
+           {{"rail": "...", "regulator": "...", "load": "..."}}
+        ]
+      }},
+      "Software": {{
+        "SoftwareModules": [
+           {{"name": "...", "safetyClass": "...", "language": "...", "rtosDependency": "...", "io": "..."}}
+        ],
+        "RTOSTasks": [
+           {{"name": "...", "priority": "...", "period": "...", "description": "..."}}
+        ],
+        "IPCMechanisms": "Text..."
+      }},
+      "Interfaces": {{
+        "SystemInterfaces": [
+           {{"name": "...", "protocol": "...", "speed": "...", "voltage": "..."}}
+        ],
+        "Signals": [
+           {{"name": "...", "type": "Analog/Digital", "range": "...", "resolution": "...", "rate": "...", "unit": "..."}}
+        ],
+        "DataPowerFlows": [
+           {{"flow": "...", "medium": "...", "nominalValue": "..."}}
+        ],
+        "InterfaceMap": [
+           {{"bus": "...", "master": "...", "slaves": ["...", "..."]}}
+        ]
+      }},
+      "Risks": {{
+        "RiskAnalysis": [
+           {{"hazard": "...", "severity": "...", "probability": "...", "riskLevel": "...", "mitigation": "..."}}
+        ],
+        "StandardsCompliance": [
+           {{"standard": "...", "clause": "...", "requirement": "..."}}
+        ]
+      }},
+      "Connections": [
+        {{"type": "ConnectsTo", "from": "...", "to": "..."}}
+      ],
+      "Environment": {{
+        "OperatingConditions": [
+           {{"parameter": "...", "spec": "..."}}
+        ]
+      }}
+    }}
+    """
+    
+    api_key = os.environ.get("OPENROUTER_API_KEY", "")
+    if not api_key:
+        return {"error": "OPENROUTER_API_KEY environment variable is not set."}
+        
+    try:
+        response = requests.post(
+          url="https://openrouter.ai/api/v1/chat/completions",
+          headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+          },
+          data=json.dumps({
+            "model": "arcee-ai/trinity-mini:free",
+            "messages": [
+              {
+                "role": "user",
+                "content": prompt
+              }
+            ]
+          })
+        )
+        data = response.json()
+        
+        if "error" in data:
+            return {"error": "OpenRouter API Error: " + str(data["error"])}
+            
+        content = data['choices'][0]['message']['content']
+        
+        # Clean markdown wrappers if present
+        content = content.strip()
+        if content.startswith("```json"):
+            content = content[7:]
+        elif content.startswith("```"):
+            content = content[3:]
+            
+        if content.endswith("```"):
+            content = content[:-3]
+            
+        try:
+            import json_repair
+            parsed_json = json_repair.loads(content.strip())
+        except ImportError:
+            # Fallback if json_repair isn't available
+            parsed_json = json.loads(content.strip())
+            
+        return {"data": parsed_json}
+    except Exception as e:
+        return {"error": f"Failed to generate or parse response: {str(e)}", "raw": content if 'content' in locals() else ""}

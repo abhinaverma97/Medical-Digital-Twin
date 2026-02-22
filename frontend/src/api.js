@@ -7,6 +7,8 @@ const client = axios.create({
 
 export const addRequirement = (r) => client.post('/requirements/', r)
 export const buildDesign = (deviceType) => client.post('/design/build/', null, { params: { device_type: deviceType } })
+export const generateDesignDetails = (deviceType) => client.post('/design/generate-details/', null, { params: { device_type: deviceType } })
+
 export const runSimulation = (deviceType, steps = 10, fidelity = 'L2') =>
   client.post('/simulation/run/', null, { params: { device_type: deviceType, steps, fidelity } })
 export const runFaultySimulation = (deviceType, parameter, bias, steps = 10) =>

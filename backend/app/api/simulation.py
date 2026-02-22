@@ -79,12 +79,25 @@ def _extract_pulse_ox_params(requirements) -> dict:
 
 
 def _extract_dialysis_params(requirements):
-    params = {}
+    params = {
+        "target_bfr": 300.0,
+        "target_dfr": 500.0,
+        "max_tmp": 400.0
+    }
     for req in requirements:
-        if req.id == "REQ-DIAL-002":
-            params["target_bfr"] = (req.min_value + req.max_value) / 2
-        if req.id == "REQ-DIAL-003":
-            params["max_tmp"] = req.max_value
+        if req.type == "performance" and req.parameter:
+            param_lower = req.parameter.lower()
+            if "bfr" in param_lower or "blood" in param_lower:
+                if getattr(req, "min_value", None) is not None and getattr(req, "max_value", None) is not None:
+                    params["target_bfr"] = (req.min_value + req.max_value) / 2.0
+            elif "dfr" in param_lower or "dialysate" in param_lower:
+                if getattr(req, "min_value", None) is not None and getattr(req, "max_value", None) is not None:
+                    params["target_dfr"] = (req.min_value + req.max_value) / 2.0
+        
+        if req.type == "safety" and req.parameter:
+            param_lower = req.parameter.lower()
+            if "tmp" in param_lower and getattr(req, "max_value", None) is not None:
+                params["max_tmp"] = req.max_value
     return params
 
 

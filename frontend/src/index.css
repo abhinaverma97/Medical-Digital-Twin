@@ -2,60 +2,88 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --bg-dark: #0f172a;
-  --bg-darker: #020617;
-  --accent-blue: #38bdf8;
-  --accent-teal: #2dd4bf;
-  --accent-crimson: #f43f5e;
-  --glass: rgba(30, 41, 59, 0.7);
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 9%;
+    --primary: 0 0% 9%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 0 0% 96.1%;
+    --secondary-foreground: 0 0% 9%;
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 45.1%;
+    --accent: 0 0% 96.1%;
+    --accent-foreground: 0 0% 9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 0 0% 9%;
+    --radius: 0.5rem;
+  }
+
+  /* ChatGPT Dark Mode Colors */
+  .dark {
+    /* Main chat background: #212121 */
+    --background: 0 0% 13%;
+    /* Text color: #ececec */
+    --foreground: 0 0% 93%;
+
+    /* Sidebar / Cards: #171717 */
+    --card: 0 0% 9%;
+    --card-foreground: 0 0% 93%;
+
+    /* Popovers/Dropdowns: #2f2f2f */
+    --popover: 0 0% 18%;
+    --popover-foreground: 0 0% 93%;
+
+    /* Primary brand/action: White or slightly off-white */
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 9%;
+
+    /* Secondary/Muted/Hover areas: #2f2f2f */
+    --secondary: 0 0% 18%;
+    --secondary-foreground: 0 0% 93%;
+    --muted: 0 0% 18%;
+    --muted-foreground: 0 0% 65%;
+    --accent: 0 0% 18%;
+    --accent-foreground: 0 0% 93%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+
+    /* Borders: #2f2f2f to blend quietly */
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 0 0% 80%;
+  }
 }
 
 @layer base {
+  * {
+    @apply border-border;
+  }
+
   body {
-    @apply bg-[#020617] text-slate-200 antialiased selection:bg-sky-500/30;
-    font-family: 'Inter', system-ui, sans-serif;
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
-@layer components {
-  .glass-card {
-    @apply bg-slate-900/50 backdrop-blur-xl border border-slate-700/50 shadow-2xl rounded-2xl overflow-hidden transition-all duration-300;
-  }
-  
-  .premium-gradient {
-    background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.15), transparent),
-                radial-gradient(circle at bottom right, rgba(45, 212, 191, 0.1), transparent);
-  }
-
-  .nav-link {
-    @apply px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all;
-  }
-  
-  .nav-link.active {
-    @apply text-sky-400 bg-sky-500/10;
-  }
-
-  .btn-primary {
-    @apply px-6 py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-medium rounded-xl shadow-lg shadow-sky-500/20 active:scale-95 transition-all disabled:opacity-50;
-  }
-
-  .btn-outline {
-    @apply px-6 py-2.5 border border-slate-700 hover:bg-slate-800 text-slate-300 font-medium rounded-xl transition-all;
-  }
-
-  .input-premium {
-    @apply bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 focus:ring-2 focus:ring-sky-500 outline-none transition-all;
-  }
-}
-
-/* Custom Scrollbar */
+/* Custom Scrollbar - ChatGPT style (minimal, dark) */
 ::-webkit-scrollbar {
   width: 8px;
+  height: 8px;
 }
+
 ::-webkit-scrollbar-track {
-  @apply bg-slate-950;
+  @apply bg-transparent;
 }
+
 ::-webkit-scrollbar-thumb {
-  @apply bg-slate-800 rounded-full hover:bg-slate-700;
+  @apply bg-[#424242] rounded-full hover:bg-[#565656];
 }

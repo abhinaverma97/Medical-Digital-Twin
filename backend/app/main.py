@@ -1,6 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+import os
+
 from backend.app.api import requirements, design, simulation, export, codegen
+
+# Load environment variables from .env file
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "../../.env"))
 
 app = FastAPI(
     title="VitaBlueprint – Generative System Design & Digital Twin",

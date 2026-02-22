@@ -1,31 +1,58 @@
 import React, { useState } from 'react'
 import { addRequirement } from '../api'
-import { ClipboardList, Plus, Sparkles, AlertCircle, Info, RotateCcw } from 'lucide-react'
+import { ClipboardList, Plus, Sparkles, AlertCircle, Info, RotateCcw, CheckCircle2, Activity } from 'lucide-react'
+
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
+import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 const SAMPLES = {
 	ventilator: {
 		id: 'REQ-VENT-001',
-		title: 'Battery Backup Power',
-		description: 'The ventilator shall transition to internal battery backup immediately upon loss of mains power.',
-		type: 'functional',
+		title: 'Peak Inspiratory Pressure (PIP) Limit',
+		description: 'The ventilator pneumatic delivery subsystem shall maintain Peak Inspiratory Pressure (PIP) within defined bounds to prevent barotrauma.',
+		type: 'performance',
 		priority: 'SHALL',
-		subsystem: 'PowerSupply',
-		parameter: 'BatteryStatus',
-		status: 'Approved',
-		verification: { method: 'test', description: 'Simulate power loss and measure discharge time.' }
+		subsystem: 'PneumaticsControl',
+		parameter: 'PIP',
+		min_value: '5',
+		max_value: '40',
+		unit: 'cmH2O',
+		tolerance: '2.0',
+		status: 'Draft',
+		verification: { method: 'simulation', description: 'Run Digital Twin closed-loop patient lung simulation under fault conditions.' }
 	},
 	ventilator_interface: {
 		id: 'REQ-VENT-INT-001',
-		title: 'O2 Sensor Signal Interface',
-		description: 'The O2 sensor shall provide a 0-5V analog signal proportional to oxygen concentration.',
+		title: 'Proportional Valve Control Signal',
+		description: 'The Main Control Unit shall command the inspiratory proportional valve using a PWM signal.',
 		type: 'interface',
 		priority: 'SHALL',
-		subsystem: 'GasMixer',
-		interface: 'O2Sensor -> ControlUnit',
-		protocol: 'Analog 0-5V',
-		parameter: 'O2Concentration',
-		status: 'Approved',
-		verification: { method: 'analysis', description: 'Review circuit schematic for impedance matching.' }
+		subsystem: 'PneumaticsControl',
+		interface: 'MainMCU -> InspValve',
+		protocol: 'PWM (10kHz)',
+		parameter: 'DutyCycle',
+		status: 'Draft',
+		verification: { method: 'test', description: 'Oscilloscope measurement of MCU output pins.' }
+	},
+	ventilator_safety: {
+		id: 'REQ-VENT-SAF-001',
+		title: 'High Pressure Alarm Cut-off',
+		description: 'The system shall trigger a high priority alarm and open the exhalation valve if airway pressure exceeds the safety limit.',
+		type: 'safety',
+		priority: 'SHALL',
+		subsystem: 'SafetyMonitor',
+		parameter: 'AirwayPressure',
+		hazard: 'Barotrauma / Over-pressurization',
+		severity: 'Critical',
+		probability: 'Occasional',
+		standard: 'ISO 80601-2-12',
+		clause: '201.12.4',
+		max_value: '60',
+		status: 'Draft',
+		verification: { method: 'simulation', description: 'Simulate airway occlusion and measure electronic relief valve actuation time.' }
 	},
 	pulse_ox: {
 		id: 'REQ-POX-001',
@@ -35,10 +62,10 @@ const SAMPLES = {
 		priority: 'SHALL',
 		subsystem: 'SignalProcessing',
 		parameter: 'SpO2',
-		min_value: 70,
-		max_value: 100,
+		min_value: "70",
+		max_value: "100",
 		unit: '%',
-		tolerance: 2.0,
+		tolerance: "2.0",
 		status: 'Approved',
 		verification: { method: 'test', description: 'Functional verification using a calibrated SpO2 simulator.' }
 	},
@@ -48,15 +75,43 @@ const SAMPLES = {
 		description: 'The system shall detect air bubbles in the extracorporeal blood circuit and stop the blood pump.',
 		type: 'safety',
 		priority: 'SHALL',
-		subsystem: 'Safety/Alarm System',
+		subsystem: 'ExtracorporealSafety',
 		parameter: 'AirBubble',
 		hazard: 'Air Embolism (Critical)',
 		severity: 'Critical',
 		probability: 'Probable',
 		standard: 'ISO 60601-2-16',
 		clause: '201.12.4.102',
-		status: 'Approved',
+		status: 'Draft',
 		verification: { method: 'simulation', description: 'Inject air into virtual sensor and verify pump cutoff response time.' }
+	},
+	dialysis_performance: {
+		id: 'REQ-DIAL-PERF-001',
+		title: 'Ultrafiltration Rate Accuracy',
+		description: 'The Ultrafiltration balancing chamber shall maintain fluid removal accuracy across the entire therapy duration.',
+		type: 'performance',
+		priority: 'SHALL',
+		subsystem: 'Ultrafiltration',
+		parameter: 'UFRate',
+		min_value: '0',
+		max_value: '4000',
+		unit: 'mL/hr',
+		tolerance: '30.0',
+		status: 'Draft',
+		verification: { method: 'simulation', description: 'Run Digital Twin closed-loop fluid mass balance integration over 4 hours.' }
+	},
+	dialysis_interface: {
+		id: 'REQ-DIAL-INT-001',
+		title: 'Arterial Blood Pump Control Signal',
+		description: 'The Master Controller shall command the arterial peristaltic blood pump using dual CAN-FD streams for lockstep verification.',
+		type: 'interface',
+		priority: 'SHALL',
+		subsystem: 'ControlSystem',
+		interface: 'MainMCU -> ArterialPump',
+		protocol: 'CAN-FD (1Mbps)',
+		parameter: 'RotorSpeed_RPM',
+		status: 'Draft',
+		verification: { method: 'test', description: 'Logic analyzer capture of redundant CAN frames.' }
 	},
 	dialysis_regulatory: {
 		id: 'REQ-DIAL-REG-001',
@@ -64,7 +119,7 @@ const SAMPLES = {
 		description: 'All blood-contacting components shall meet ISO 10993-1 requirements for biocompatibility.',
 		type: 'regulatory',
 		priority: 'SHALL',
-		subsystem: 'Extracorporeal Circuit',
+		subsystem: 'BloodCircuit',
 		status: 'Approved',
 		standard: 'ISO 10993-1',
 		clause: 'Clause 4',
@@ -106,11 +161,15 @@ export default function RequirementsForm({ deviceType }) {
 	const loadSample = (type = null) => {
 		let key = deviceType
 		if (type === 'interface' && deviceType === 'ventilator') key = 'ventilator_interface'
+		if (type === 'safety' && deviceType === 'ventilator') key = 'ventilator_safety'
+		if (type === 'performance' && deviceType === 'dialysis') key = 'dialysis_performance'
+		if (type === 'interface' && deviceType === 'dialysis') key = 'dialysis_interface'
+		if (type === 'safety' && deviceType === 'dialysis') key = 'dialysis'
 		if (type === 'regulatory' && deviceType === 'dialysis') key = 'dialysis_regulatory'
 
 		const sample = SAMPLES[key] || SAMPLES.ventilator
 		setReq({ ...INITIAL_STATE, ...sample })
-		setMsg({ type: 'success', text: `Sample [${sample.type}] loaded.` })
+		setMsg({ type: 'success', text: `Sample loaded: ${sample.title}` })
 	}
 
 	const resetForm = () => {
@@ -135,19 +194,17 @@ export default function RequirementsForm({ deviceType }) {
 		try {
 			await addRequirement(payload)
 			setMsg({ type: 'success', text: `Requirement ${req.id} added successfully.` })
-			setSubmittedReqs(prev => [payload, ...prev].slice(0, 5)) // Keep last 5
+			setSubmittedReqs(prev => [payload, ...prev].slice(0, 5))
 		} catch (err) {
 			console.error('SUBMIT_ERROR:', err)
 			const errorDetail = err.response?.data?.detail
 			let errorMsg = 'Add failed.'
 
 			if (Array.isArray(errorDetail)) {
-				// Handle Pydantic objects or direct string lists
 				errorMsg = typeof errorDetail[0] === 'string' ? errorDetail[0] : (errorDetail[0]?.msg || JSON.stringify(errorDetail[0]))
 			} else if (typeof errorDetail === 'string') {
 				errorMsg = errorDetail
 			}
-
 			setMsg({ type: 'error', text: errorMsg })
 		} finally {
 			setLoading(false)
@@ -155,226 +212,331 @@ export default function RequirementsForm({ deviceType }) {
 	}
 
 	const SectionHeader = ({ title, icon: Icon }) => (
-		<div className="flex items-center gap-2 border-b border-slate-800 pb-2 mb-4 mt-6">
-			<Icon size={14} className="text-sky-400" />
-			<h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">{title}</h3>
+		<div className="flex items-center gap-2 border-b pb-2 mb-4 mt-8">
+			<Icon size={16} className="text-muted-foreground" />
+			<h4 className="text-sm font-semibold tracking-tight text-foreground">{title}</h4>
 		</div>
 	)
 
 	return (
-		<div className="max-w-5xl mx-auto space-y-8">
-			<div className="flex items-center justify-between">
+		<div className="space-y-6">
+			{/* Page Header Area */}
+			<div className="flex items-center justify-between pb-4 border-b border-white/5">
 				<div>
-					<h2 className="text-2xl font-bold text-white flex items-center gap-2">
-						<ClipboardList className="text-sky-400" /> Integrated Requirement Intake
+					<h2 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
+						Integrated Requirement Intake
 					</h2>
-					<p className="text-slate-400">Full-schema deterministic definition for {deviceType}.</p>
+					<p className="text-muted-foreground text-sm mt-1">Full-schema deterministic definition for {deviceType}.</p>
 				</div>
 				<div className="flex gap-2">
-					<button type="button" onClick={resetForm} className="btn-outline flex items-center gap-2 text-xs py-1.5 px-3 border-slate-700 text-slate-400 hover:bg-slate-800 transition-all"><RotateCcw size={14} /> Reset</button>
-					<button type="button" onClick={() => loadSample()} className="btn-outline flex items-center gap-2 text-xs py-1.5 px-4 border-sky-500/20 text-sky-400 hover:bg-sky-500/10 transition-all"><Sparkles size={14} /> Load Engineering Sample</button>
+					<Button variant="outline" size="sm" onClick={resetForm} className="bg-transparent border-white/10 hover:bg-white/5">
+						<RotateCcw className="mr-2 h-4 w-4" /> Reset
+					</Button>
+					<Button variant="secondary" size="sm" onClick={() => loadSample()} className="bg-white/10 hover:bg-white/15 text-white">
+						<Sparkles className="mr-2 h-4 w-4" /> Load System Sample
+					</Button>
 					{deviceType === 'ventilator' && (
-						<button type="button" onClick={() => loadSample('interface')} className="btn-outline flex items-center gap-2 text-xs py-1.5 px-4 border-teal-500/20 text-teal-400 hover:bg-teal-500/10 transition-all"><ActivityCircle size={14} /> Load Interface Sample</button>
+						<>
+							<Button variant="secondary" size="sm" onClick={() => loadSample('interface')} className="bg-white/10 hover:bg-white/15 text-white">
+								<Activity className="mr-2 h-4 w-4" /> Load Interface Sample
+							</Button>
+							<Button variant="secondary" size="sm" onClick={() => loadSample('safety')} className="bg-destructive/20 hover:bg-destructive/30 text-destructive-foreground border border-destructive/50">
+								<AlertCircle className="mr-2 h-4 w-4" /> Load Safety Sample
+							</Button>
+						</>
+					)}
+					{deviceType === 'dialysis' && (
+						<>
+							<Button variant="secondary" size="sm" onClick={() => loadSample('performance')} className="bg-white/10 hover:bg-white/15 text-white">
+								<Activity className="mr-2 h-4 w-4" /> Load Performance Sample
+							</Button>
+							<Button variant="secondary" size="sm" onClick={() => loadSample('interface')} className="bg-white/10 hover:bg-white/15 text-white">
+								<Activity className="mr-2 h-4 w-4" /> Load Interface Sample
+							</Button>
+							<Button variant="secondary" size="sm" onClick={() => loadSample('safety')} className="bg-destructive/20 hover:bg-destructive/30 text-destructive-foreground border border-destructive/50">
+								<AlertCircle className="mr-2 h-4 w-4" /> Load Safety Sample
+							</Button>
+						</>
 					)}
 				</div>
 			</div>
 
-			<form onSubmit={handleSubmit} className="space-y-4">
-				<SectionHeader title="Identify & Classify" icon={Info} />
-				<div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-					<div className="md:col-span-1">
-						<label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">REQ ID</label>
-						<input type="text" value={req.id} onChange={e => setReq({ ...req, id: e.target.value })} className="input-premium w-full !text-xs" required />
-					</div>
-					<div className="md:col-span-2">
-						<label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Title</label>
-						<input type="text" value={req.title} onChange={e => setReq({ ...req, title: e.target.value })} className="input-premium w-full !text-xs" required />
-					</div>
-					<div className="md:col-span-1">
-						<label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Type</label>
-						<select value={req.type} onChange={e => setReq({ ...req, type: e.target.value })} className="input-premium w-full !text-xs">
-							<option value="functional">Functional</option>
-							<option value="performance">Performance</option>
-							<option value="interface">Interface</option>
-							<option value="safety">Safety (ISO 14971)</option>
-							<option value="regulatory">Regulatory</option>
-							<option value="environmental">Environmental</option>
-						</select>
-					</div>
-				</div>
+			<div className="w-full">
+				<form onSubmit={handleSubmit} className="space-y-8">
 
-				<div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-					<div>
-						<label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Priority</label>
-						<select value={req.priority} onChange={e => setReq({ ...req, priority: e.target.value })} className="input-premium w-full !text-xs">
-							<option value="SHALL">SHALL (Mandatory)</option>
-							<option value="SHOULD">SHOULD (Recommended)</option>
-							<option value="MAY">MAY (Optional)</option>
-						</select>
-					</div>
-					<div>
-						<label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Status</label>
-						<select value={req.status} onChange={e => setReq({ ...req, status: e.target.value })} className="input-premium w-full !text-xs">
-							<option value="Draft">Draft</option>
-							<option value="Approved">Approved</option>
-						</select>
-					</div>
-					<div>
-						<label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Target Subsystem</label>
-						<input type="text" value={req.subsystem} onChange={e => setReq({ ...req, subsystem: e.target.value })} className="input-premium w-full !text-xs" required />
-					</div>
-					<div>
-						<label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Parent REQ ID</label>
-						<input type="text" value={req.parent_id} onChange={e => setReq({ ...req, parent_id: e.target.value })} className="input-premium w-full !text-xs" placeholder="None" />
-					</div>
-				</div>
+					<div className="space-y-4">
+						<SectionHeader title="Identification & Classification" icon={Info} />
 
-				<div>
-					<label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Description</label>
-					<textarea value={req.description} onChange={e => setReq({ ...req, description: e.target.value })} className="input-premium w-full h-20 resize-none !text-xs" required />
-				</div>
-
-				{(req.type === 'performance' || req.type === 'functional') && (
-					<>
-						<SectionHeader title="Performance Bounds" icon={ActivityCircle} />
-						<div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-							<div className="col-span-2">
-								<label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Parameter</label>
-								<input type="text" value={req.parameter} onChange={e => setReq({ ...req, parameter: e.target.value })} className="input-premium w-full !text-xs" placeholder="e.g. Pressure" />
+						<div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+							<div className="space-y-1">
+								<Label className="text-xs text-[#878787] font-medium">REQ ID</Label>
+								<Input className="bg-[#171717] border-white/10 focus-visible:ring-1 focus-visible:ring-white/20 text-[#ececec]" value={req.id} onChange={e => setReq({ ...req, id: e.target.value })} required />
 							</div>
-							<div>
-								<label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Min Value</label>
-								<input type="number" step="any" value={req.min_value} onChange={e => setReq({ ...req, min_value: e.target.value })} className="input-premium w-full !text-xs" />
+							<div className="md:col-span-2 space-y-1">
+								<Label className="text-xs text-[#878787] font-medium">Title</Label>
+								<Input className="bg-[#171717] border-white/10 focus-visible:ring-1 focus-visible:ring-white/20 text-[#ececec]" value={req.title} onChange={e => setReq({ ...req, title: e.target.value })} required />
 							</div>
-							<div>
-								<label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Max Value</label>
-								<input type="number" step="any" value={req.max_value} onChange={e => setReq({ ...req, max_value: e.target.value })} className="input-premium w-full !text-xs" />
-							</div>
-							<div>
-								<label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Unit</label>
-								<input type="text" value={req.unit} onChange={e => setReq({ ...req, unit: e.target.value })} className="input-premium w-full !text-xs" placeholder="e.g. L/min" />
-							</div>
-							<div>
-								<label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Response (ms)</label>
-								<input type="number" value={req.response_time_ms} onChange={e => setReq({ ...req, response_time_ms: e.target.value })} className="input-premium w-full !text-xs" />
+							<div className="space-y-1">
+								<Label className="text-xs text-[#878787] font-medium">Requirement Type</Label>
+								<Select value={req.type} onValueChange={v => setReq({ ...req, type: v })}>
+									<SelectTrigger className="bg-[#171717] border-white/10 focus-visible:ring-1 focus-visible:ring-white/20 text-[#ececec]">
+										<SelectValue placeholder="Select type..." />
+									</SelectTrigger>
+									<SelectContent className="bg-[#171717] border-white/10 text-white">
+										<SelectItem value="functional">Functional</SelectItem>
+										<SelectItem value="performance">Performance</SelectItem>
+										<SelectItem value="interface">Interface</SelectItem>
+										<SelectItem value="safety">Safety (ISO 14971)</SelectItem>
+										<SelectItem value="regulatory">Regulatory</SelectItem>
+										<SelectItem value="environmental">Environmental</SelectItem>
+									</SelectContent>
+								</Select>
 							</div>
 						</div>
-					</>
-				)}
+					</div>
 
-				{req.type === 'interface' && (
-					<>
-						<SectionHeader title="Interface Definition" icon={ActivityCircle} />
+					<div className="space-y-4">
+						<div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+							<div className="space-y-1">
+								<Label className="text-xs text-[#878787] font-medium">Priority</Label>
+								<Select value={req.priority} onValueChange={v => setReq({ ...req, priority: v })}>
+									<SelectTrigger className="bg-[#171717] border-white/10 focus-visible:ring-1 focus-visible:ring-white/20 text-[#ececec]">
+										<SelectValue placeholder="Select priority..." />
+									</SelectTrigger>
+									<SelectContent className="bg-[#171717] border-white/10 text-white">
+										<SelectItem value="SHALL">SHALL (Mandatory)</SelectItem>
+										<SelectItem value="SHOULD">SHOULD (Highly Recommended)</SelectItem>
+										<SelectItem value="MAY">MAY (Optional)</SelectItem>
+									</SelectContent>
+								</Select>
+							</div>
+							<div className="space-y-1">
+								<Label className="text-xs text-[#878787] font-medium">Status</Label>
+								<Select value={req.status} onValueChange={v => setReq({ ...req, status: v })}>
+									<SelectTrigger className="bg-[#171717] border-white/10 focus-visible:ring-1 focus-visible:ring-white/20 text-[#ececec]">
+										<SelectValue placeholder="Select status..." />
+									</SelectTrigger>
+									<SelectContent className="bg-[#171717] border-white/10 text-white">
+										<SelectItem value="draft">Draft</SelectItem>
+										<SelectItem value="review">Under Review</SelectItem>
+										<SelectItem value="approved">Approved</SelectItem>
+									</SelectContent>
+								</Select>
+							</div>
+							<div className="space-y-1">
+								<Label className="text-xs text-[#878787] font-medium">Target Subsystem</Label>
+								<Input list="subsystems" className="bg-[#171717] border-white/10 focus-visible:ring-1 focus-visible:ring-white/20 text-[#ececec]" value={req.subsystem} onChange={e => setReq({ ...req, subsystem: e.target.value })} placeholder="e.g. Blower Control" />
+								<datalist id="subsystems">
+									{deviceType === 'ventilator' && (
+										<>
+											<option value="PneumaticsControl" />
+											<option value="MainControlUnit" />
+											<option value="PowerSupply" />
+											<option value="GasMixer" />
+											<option value="SafetyMonitor" />
+											<option value="PatientInterface" />
+											<option value="Display&UI" />
+										</>
+									)}
+									{deviceType === 'dialysis' && (
+										<>
+											<option value="BloodCircuit" />
+											<option value="DialysateCircuit" />
+											<option value="Ultrafiltration" />
+											<option value="ExtracorporealSafety" />
+											<option value="ControlSystem" />
+											<option value="PowerAndThermal" />
+											<option value="Display&UI" />
+										</>
+									)}
+									{deviceType === 'pulse_ox' && (
+										<>
+											<option value="OpticalSensor" />
+											<option value="SignalProcessing" />
+											<option value="DisplayUnit" />
+										</>
+									)}
+								</datalist>
+							</div>
+							<div className="space-y-1">
+								<Label className="text-xs text-[#878787] font-medium">Parent REQ ID</Label>
+								<Input className="bg-[#171717] border-white/10 focus-visible:ring-1 focus-visible:ring-white/20 text-[#ececec]" value={req.parentReq} onChange={e => setReq({ ...req, parentReq: e.target.value })} placeholder="Optional" />
+							</div>
+						</div>
+					</div>
+
+					<div className="space-y-2">
+						<Label className="text-xs text-[#878787] font-medium">Technical Description</Label>
+						<textarea
+							className="flex w-full rounded-md border border-white/10 bg-[#171717] px-3 py-2 text-sm text-[#ececec] placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20 min-h-[100px] resize-y"
+							value={req.description}
+							onChange={e => setReq({ ...req, description: e.target.value })}
+							required
+						/>
+					</div>
+
+					{/* CONDITIONAL SECTIONS */}
+					{(req.type === 'performance' || req.type === 'functional') && (
+						<div className="space-y-4">
+							<SectionHeader title="Performance Bounds" icon={Activity} />
+							<div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+								<div className="md:col-span-2 space-y-1">
+									<Label className="text-xs text-[#878787] font-medium">Parameter Name</Label>
+									<Input className="bg-[#171717] border-white/10 focus-visible:ring-1 focus-visible:ring-white/20 text-[#ececec]" value={req.bounds?.parameter || ''} onChange={e => setReq({ ...req, bounds: { ...req.bounds, parameter: e.target.value } })} placeholder="e.g. Pressure" />
+								</div>
+								<div className="space-y-1">
+									<Label className="text-xs text-[#878787] font-medium">Min Value</Label>
+									<Input className="bg-[#171717] border-white/10 focus-visible:ring-1 focus-visible:ring-white/20 text-[#ececec]" type="number" step="any" value={req.bounds?.min || ''} onChange={e => setReq({ ...req, bounds: { ...req.bounds, min: e.target.value } })} />
+								</div>
+								<div className="space-y-1">
+									<Label className="text-xs text-[#878787] font-medium">Max Value</Label>
+									<Input className="bg-[#171717] border-white/10 focus-visible:ring-1 focus-visible:ring-white/20 text-[#ececec]" type="number" step="any" value={req.bounds?.max || ''} onChange={e => setReq({ ...req, bounds: { ...req.bounds, max: e.target.value } })} />
+								</div>
+								<div className="space-y-1">
+									<Label className="text-xs text-[#878787] font-medium">Unit</Label>
+									<Input className="bg-[#171717] border-white/10 focus-visible:ring-1 focus-visible:ring-white/20 text-[#ececec]" value={req.bounds?.unit || ''} onChange={e => setReq({ ...req, bounds: { ...req.bounds, unit: e.target.value } })} placeholder="e.g. L/min" />
+								</div>
+								<div className="space-y-1">
+									<Label className="text-xs text-[#878787] font-medium">Response (ms)</Label>
+									<Input className="bg-[#171717] border-white/10 focus-visible:ring-1 focus-visible:ring-white/20 text-[#ececec]" type="number" value={req.bounds?.responseTimeMs || ''} onChange={e => setReq({ ...req, bounds: { ...req.bounds, responseTimeMs: e.target.value } })} />
+								</div>
+							</div>
+						</div>
+					)}
+
+					{req.type === 'interface' && (
+						<div className="space-y-4">
+							<SectionHeader title="Interface Definition" icon={Activity} />
+							<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+								<div className="space-y-1">
+									<Label className="text-xs text-[#878787] font-medium">Interface Mapping</Label>
+									<Input className="bg-[#171717] border-white/10 focus-visible:ring-1 focus-visible:ring-white/20 text-[#ececec]" value={req.interface} onChange={e => setReq({ ...req, interface: e.target.value })} placeholder="Source -> Target" />
+								</div>
+								<div className="space-y-1">
+									<Label className="text-xs text-[#878787] font-medium">Protocol / Signal</Label>
+									<Input className="bg-[#171717] border-white/10 focus-visible:ring-1 focus-visible:ring-white/20 text-[#ececec]" value={req.protocol} onChange={e => setReq({ ...req, protocol: e.target.value })} />
+								</div>
+								<div className="space-y-1">
+									<Label className="text-xs text-[#878787] font-medium">Parameter Flow</Label>
+									<Input className="bg-[#171717] border-white/10 focus-visible:ring-1 focus-visible:ring-white/20 text-[#ececec]" value={req.parameter} onChange={e => setReq({ ...req, parameter: e.target.value })} />
+								</div>
+							</div>
+						</div>
+					)}
+
+					{req.type === 'safety' && (
+						<div className="space-y-4">
+							<SectionHeader title="ISO 14971 Risk Assessment" icon={AlertCircle} />
+							<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+								<div className="space-y-1">
+									<Label className="text-xs text-[#878787] font-medium">Hazard Type</Label>
+									<Input className="bg-[#171717] border-white/10 focus-visible:ring-1 focus-visible:ring-white/20 text-[#ececec]" value={req.hazard} onChange={e => setReq({ ...req, hazard: e.target.value })} placeholder="e.g. Excessive Pressure" />
+								</div>
+								<div className="space-y-1">
+									<Label className="text-xs text-[#878787] font-medium">Severity</Label>
+									<Select value={req.severity} onValueChange={v => setReq({ ...req, severity: v })}>
+										<SelectTrigger className="bg-[#171717] border-white/10 focus-visible:ring-1 focus-visible:ring-white/20 text-[#ececec]">
+											<SelectValue placeholder="Select severity..." />
+										</SelectTrigger>
+										<SelectContent className="bg-[#171717] border-white/10 text-white">
+											<SelectItem value="Low">Low</SelectItem>
+											<SelectItem value="Medium">Medium</SelectItem>
+											<SelectItem value="High">High</SelectItem>
+											<SelectItem value="Critical">Critical</SelectItem>
+										</SelectContent>
+									</Select>
+								</div>
+								<div className="space-y-1">
+									<Label className="text-xs text-[#878787] font-medium">Probability (P1)</Label>
+									<Select value={req.probability} onValueChange={v => setReq({ ...req, probability: v })}>
+										<SelectTrigger className="bg-[#171717] border-white/10 focus-visible:ring-1 focus-visible:ring-white/20 text-[#ececec]">
+											<SelectValue placeholder="Select probability..." />
+										</SelectTrigger>
+										<SelectContent className="bg-[#171717] border-white/10 text-white">
+											<SelectItem value="Negligible">Negligible</SelectItem>
+											<SelectItem value="Remote">Remote</SelectItem>
+											<SelectItem value="Occasional">Occasional</SelectItem>
+											<SelectItem value="Probable">Probable</SelectItem>
+											<SelectItem value="Frequent">Frequent</SelectItem>
+										</SelectContent>
+									</Select>
+								</div>
+							</div>
+							<div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+								<div className="space-y-1">
+									<Label className="text-xs text-[#878787] font-medium">Monitored Parameter</Label>
+									<Input className="bg-[#171717] border-white/10 focus-visible:ring-1 focus-visible:ring-white/20 text-[#ececec]" value={req.parameter} onChange={e => setReq({ ...req, parameter: e.target.value })} />
+								</div>
+								<div className="space-y-1">
+									<Label className="text-xs text-[#878787] font-medium">Safety Limit (Max)</Label>
+									<Input className="bg-[#171717] border-white/10 focus-visible:ring-1 focus-visible:ring-white/20 text-[#ececec]" type="number" step="any" value={req.max_value} onChange={e => setReq({ ...req, max_value: e.target.value })} />
+								</div>
+								<div className="space-y-1">
+									<Label className="text-xs text-[#878787] font-medium">Regulation Standard</Label>
+									<Input className="bg-[#171717] border-white/10 focus-visible:ring-1 focus-visible:ring-white/20 text-[#ececec]" value={req.standard} onChange={e => setReq({ ...req, standard: e.target.value })} placeholder="ISO 14971" />
+								</div>
+								<div className="space-y-1">
+									<Label className="text-xs text-[#878787] font-medium">Clause REF</Label>
+									<Input className="bg-[#171717] border-white/10 focus-visible:ring-1 focus-visible:ring-white/20 text-[#ececec]" value={req.clause} onChange={e => setReq({ ...req, clause: e.target.value })} />
+								</div>
+							</div>
+						</div>
+					)}
+
+					<div className="space-y-4">
+						<SectionHeader title="Verification Strategy" icon={ClipboardList} />
 						<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-							<div>
-								<label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Interface Mapping</label>
-								<input type="text" value={req.interface} onChange={e => setReq({ ...req, interface: e.target.value })} className="input-premium w-full !text-xs" placeholder="Source -> Target" />
+							<div className="space-y-1">
+								<Label className="text-xs text-[#878787] font-medium">Method</Label>
+								<Select value={req.verification.method} onValueChange={v => setReq({ ...req, verification: { ...req.verification, method: v } })}>
+									<SelectTrigger className="bg-[#171717] border-white/10 focus-visible:ring-1 focus-visible:ring-white/20 text-[#ececec]">
+										<SelectValue placeholder="Select method..." />
+									</SelectTrigger>
+									<SelectContent className="bg-[#171717] border-white/10 text-white">
+										<SelectItem value="test">Test</SelectItem>
+										<SelectItem value="simulation">Digital Twin Simulation</SelectItem>
+										<SelectItem value="analysis">Analysis</SelectItem>
+										<SelectItem value="inspection">Inspection</SelectItem>
+									</SelectContent>
+								</Select>
 							</div>
-							<div>
-								<label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Protocol / Signal</label>
-								<input type="text" value={req.protocol} onChange={e => setReq({ ...req, protocol: e.target.value })} className="input-premium w-full !text-xs" />
-							</div>
-							<div>
-								<label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Parameter Flow</label>
-								<input type="text" value={req.parameter} onChange={e => setReq({ ...req, parameter: e.target.value })} className="input-premium w-full !text-xs" />
-							</div>
-						</div>
-					</>
-				)}
-
-				{req.type === 'safety' && (
-					<>
-						<SectionHeader title="ISO 14971 Risk Assessment" icon={AlertCircle} />
-						<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-							<div>
-								<label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Hazard Type</label>
-								<input type="text" value={req.hazard} onChange={e => setReq({ ...req, hazard: e.target.value })} className="input-premium w-full !text-xs" placeholder="e.g. Excessive Pressure" />
-							</div>
-							<div>
-								<label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Severity</label>
-								<select value={req.severity} onChange={e => setReq({ ...req, severity: e.target.value })} className="input-premium w-full !text-xs">
-									<option value="Low">Low</option>
-									<option value="Medium">Medium</option>
-									<option value="High">High</option>
-									<option value="Critical">Critical</option>
-								</select>
-							</div>
-							<div>
-								<label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Probability (P1)</label>
-								<select value={req.probability} onChange={e => setReq({ ...req, probability: e.target.value })} className="input-premium w-full !text-xs">
-									<option value="Negligible">Negligible</option>
-									<option value="Remote">Remote</option>
-									<option value="Occasional">Occasional</option>
-									<option value="Probable">Probable</option>
-									<option value="Frequent">Frequent</option>
-								</select>
+							<div className="md:col-span-2 space-y-1">
+								<Label className="text-xs text-[#878787] font-medium">Evidence Plan</Label>
+								<Input className="bg-[#171717] border-white/10 focus-visible:ring-1 focus-visible:ring-white/20 text-[#ececec]" value={req.verification.description} onChange={e => setReq({ ...req, verification: { ...req.verification, description: e.target.value } })} required />
 							</div>
 						</div>
-						<div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-2">
-							<div>
-								<label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Monitored Parameter</label>
-								<input type="text" value={req.parameter} onChange={e => setReq({ ...req, parameter: e.target.value })} className="input-premium w-full !text-xs" />
-							</div>
-							<div>
-								<label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Safety Limit (Max)</label>
-								<input type="number" step="any" value={req.max_value} onChange={e => setReq({ ...req, max_value: e.target.value })} className="input-premium w-full !text-xs" />
-							</div>
-							<div>
-								<label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Regulation Standard</label>
-								<input type="text" value={req.standard} onChange={e => setReq({ ...req, standard: e.target.value })} className="input-premium w-full !text-xs" placeholder="ISO 14971" />
-							</div>
-							<div>
-								<label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Clause REF</label>
-								<input type="text" value={req.clause} onChange={e => setReq({ ...req, clause: e.target.value })} className="input-premium w-full !text-xs" />
-							</div>
+					</div>
+
+					<div className="flex items-center justify-between border-t border-white/10 pt-6 mt-6">
+						<div className="flex items-center gap-4">
+							{msg && (
+								<p className={`text-sm font-medium ${msg.type === 'success' ? 'text-emerald-500' : 'text-destructive'}`}>
+									{msg.text}
+								</p>
+							)}
 						</div>
-					</>
-				)}
-
-				<SectionHeader title="Verification Strategy" icon={Plus} />
-				<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-					<div>
-						<label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Method</label>
-						<select value={req.verification.method} onChange={e => setReq({ ...req, verification: { ...req.verification, method: e.target.value } })} className="input-premium w-full !text-xs">
-							<option value="test">Test</option>
-							<option value="simulation">Digital Twin Simulation</option>
-							<option value="analysis">Analysis</option>
-							<option value="inspection">Inspection</option>
-						</select>
+						<Button type="submit" disabled={loading} className="gap-2 bg-white text-black hover:bg-white/90">
+							{loading ? 'Submitting...' : <><Plus className="h-4 w-4" /> Commit Requirement</>}
+						</Button>
 					</div>
-					<div className="md:col-span-2">
-						<label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Evidence Plan</label>
-						<input type="text" value={req.verification.description} onChange={e => setReq({ ...req, verification: { ...req.verification, description: e.target.value } })} className="input-premium w-full !text-xs" required />
-					</div>
-				</div>
-
-				<div className="flex items-center justify-between pt-6 mt-8 border-t border-slate-800">
-					<div className="flex items-center gap-4">
-						{msg && (
-							<p className={`text-sm font-medium px-4 py-2 rounded-lg ${msg.type === 'success' ? 'bg-teal-500/10 text-teal-400' : 'bg-crimson-500/10 text-crimson-400'}`}>
-								{msg.text}
-							</p>
-						)}
-					</div>
-					<button type="submit" disabled={loading} className="btn-primary flex items-center gap-2">
-						{loading ? 'Submitting...' : <><Plus size={18} /> Commit Requirement</>}
-					</button>
-				</div>
-			</form>
+				</form>
+			</div>
 
 			{submittedReqs.length > 0 && (
-				<div className="mt-12 bg-slate-900/30 rounded-2xl border border-slate-800/50 p-6">
-					<h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-						<CheckCircle2 size={14} className="text-teal-500" /> Recent Submissions
+				<div className="space-y-3">
+					<h4 className="text-sm font-semibold text-[#878787] flex items-center gap-2">
+						<CheckCircle2 className="h-4 w-4 text-emerald-500" /> Recent Submissions
 					</h4>
-					<div className="space-y-2">
+					<div className="grid gap-2">
 						{submittedReqs.map((r, i) => (
-							<div key={i} className="flex items-center justify-between py-2 px-3 bg-slate-800/30 rounded-lg border border-slate-800/50 group hover:border-sky-500/30 transition-all">
+							<div key={i} className="p-3 flex items-center justify-between bg-[#171717] hover:bg-[#2f2f2f] transition-colors rounded-xl border border-white/5">
 								<div className="flex items-center gap-3">
-									<span className="text-[10px] font-mono text-sky-400 bg-sky-500/10 px-1.5 py-0.5 rounded">{r.id}</span>
-									<span className="text-xs text-slate-300 font-medium">{r.title}</span>
+									<div className="text-xs font-mono font-medium bg-[#2f2f2f] text-[#ececec] px-2 py-1 rounded">
+										{r.id}
+									</div>
+									<span className="text-sm font-medium text-[#ececec]">{r.title}</span>
 								</div>
-								<span className="text-[10px] text-slate-500 uppercase font-bold group-hover:text-slate-400">{r.type}</span>
+								<span className="text-[10px] text-[#878787] uppercase font-bold tracking-wider">{r.type}</span>
 							</div>
 						))}
 					</div>
@@ -390,9 +552,10 @@ const ActivityCircle = ({ size, className }) => (
 	</svg>
 )
 
-const CheckCircle2 = ({ size, className }) => (
+const FileCheck2 = ({ size, className }) => (
 	<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-		<path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
-		<path d="m9 12 2 2 4-4" />
+		<path d="M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v4" />
+		<path d="M14 2v4a2 2 0 0 0 2 2h4" />
+		<path d="m9 15 2 2 4-4" />
 	</svg>
 )
