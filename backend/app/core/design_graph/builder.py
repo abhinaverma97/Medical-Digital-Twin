@@ -6,6 +6,7 @@ from .nodes import SubsystemNode
 class DesignGraphBuilder:
     """
     Builds a DesignGraph deterministically from structured requirements.
+    Incorporates industry-grade metadata from the MedicalDevice model.
     """
 
     def __init__(self, device):
@@ -20,32 +21,60 @@ class DesignGraphBuilder:
         # Step 1: Group requirements by subsystem
         subsystem_requirements = self._group_by_subsystem(requirements)
 
-        # Step 2: Create subsystem nodes
-        for subsystem, reqs in subsystem_requirements.items():
-            node = self._create_subsystem_node(subsystem, reqs)
+        # Step 2: Get detailed architecture and metadata
+        arch = self.device.get_architecture()
+        all_details = self.device.get_detailed_components()
+        software_stack = self.device.get_software_stack()
+        safety_components = self.device.get_standard_safety_components()
+
+        # Step 3: Create subsystem nodes with minute details
+        all_subsystems = set(subsystem_requirements.keys()) | set(arch.keys())
+
+        for subsystem in all_subsystems:
+            reqs = subsystem_requirements.get(subsystem, [])
+            components = arch.get(subsystem, [])
+            
+            # Injection logic for safety
+            if "Control" in subsystem or "Safety" in subsystem:
+                components = list(set(components + safety_components))
+            
+            # Filter details and software relevant to ONLY this subsystem
+            # (In a real system, we might have more complex mapping, but let's keep it simple)
+            subsystem_details = {c: all_details[c] for c in components if c in all_details}
+            
+            # For demo: map software based on keyword match
+            subsystem_software = [s for s in software_stack if subsystem.lower() in s.get("name", "").lower() or subsystem.lower() in s.get("layer", "").lower()]
+
+            node = self._create_subsystem_node(subsystem, reqs, components, subsystem_details, subsystem_software)
             graph.add_subsystem(node)
 
-        # Step 3: Infer interfaces
+        # Step 4: Infer interfaces (Requirements-driven)
         self._infer_interfaces(graph, requirements)
+
+        # Step 5: Add default interfaces from device model (to ensureArrows always show)
+        default_ifaces = self.device.get_default_interfaces()
+        existing_pairs = {(i.source, i.target) for i in graph.interfaces}
+        for d_iface in default_ifaces:
+            if (d_iface['source'], d_iface['target']) not in existing_pairs:
+                graph.connect(
+                    source=d_iface['source'],
+                    target=d_iface['target'],
+                    signal=d_iface['signal']
+                )
 
         return graph
 
+
     def _group_by_subsystem(self, requirements):
         grouped = defaultdict(list)
-
         for req in requirements:
-            if not req.subsystem:
-                raise ValueError(
-                    f"Requirement {req.id} missing subsystem mapping"
-                )
-            grouped[req.subsystem].append(req)
-
+            if req.subsystem:
+                grouped[req.subsystem].append(req)
         return grouped
 
-    def _create_subsystem_node(self, subsystem, requirements):
+    def _create_subsystem_node(self, subsystem, requirements, components, details, software):
         inputs = []
         outputs = []
-
         for req in requirements:
             if req.type == "interface":
                 if req.parameter:
@@ -57,42 +86,25 @@ class DesignGraphBuilder:
         return SubsystemNode(
             name=subsystem,
             inputs=list(set(inputs)),
-            outputs=list(set(outputs))
+            outputs=list(set(outputs)),
+            components=components,
+            detailed_components=details,
+            software_stack=software
         )
 
     def _infer_interfaces(self, graph, requirements):
-        """
-        Interface inference is STRICT:
-        - Only interface requirements create connections
-        """
-
         for req in requirements:
             if req.type != "interface":
                 continue
-
             if not req.interface:
-                raise ValueError(
-                    f"Interface requirement {req.id} missing 'interface' mapping"
-                )
-
+                continue
             source, target = self._parse_interface(req.interface)
             signal = req.parameter or "Generic"
-
-            graph.connect(
-                source=source,
-                target=target,
-                signal=signal
-            )
+            graph.connect(source=source, target=target, signal=signal)
 
     def _parse_interface(self, interface_str):
-        """
-        Expected format:
-        'SourceSubsystem -> TargetSubsystem'
-        """
         try:
             source, target = interface_str.split("->")
             return source.strip(), target.strip()
         except ValueError:
-            raise ValueError(
-                f"Invalid interface format: {interface_str}"
-            )
+            return "Unknown", "Unknown"

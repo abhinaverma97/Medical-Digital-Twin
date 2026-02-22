@@ -24,10 +24,13 @@ class LogicalDiagramGenerator:
             graph_attr={
                 "rankdir": "LR",
                 "splines": "spline",
-                "nodesep": "0.9",
+                "nodesep": "1.0",
                 "ranksep": "1.5",
-                "fontname": "Helvetica"
+                "fontname": "Helvetica",
+                "size": "10,8!",
+                "ratio": "fill"
             },
+
             node_attr={
                 "fontname": "Helvetica",
                 "fontsize": "10"
@@ -81,7 +84,8 @@ class LogicalDiagramGenerator:
                 range_str = ""
                 if req.min_value is not None and req.max_value is not None:
                     unit = req.unit or ""
-                    range_str = f"\n[{req.min_value}–{req.max_value} {unit}]"
+                    range_str = f"\n[{req.min_value}-{req.max_value} {unit}]"
+
                 elif req.response_time_ms is not None:
                     range_str = f"\n[≤{req.response_time_ms} ms]"
 
