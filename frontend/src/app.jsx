@@ -30,7 +30,7 @@ export default function App() {
 
   const navItems = [
     { id: 'requirements', label: 'Requirements', icon: ClipboardList },
-    { id: 'design', label: 'Design Graph', icon: GitBranch },
+    { id: 'design', label: 'Graph', icon: GitBranch },
     { id: 'simulation', label: 'Digital Twin', icon: MonitorPlay },
     { id: 'trace', label: 'Traceability', icon: FileSearch },
   ]
@@ -150,7 +150,7 @@ export default function App() {
         ) : (
           <div className="flex-1 overflow-y-auto">
             <div className="w-full h-full min-h-[600px] p-4 md:p-6 lg:p-10 pt-6 md:pt-10">
-              {view === 'requirements' && <RequirementsForm deviceType={deviceType} />}
+              {view === 'requirements' && <RequirementsForm deviceType={deviceType} setView={setView} />}
               {view === 'design' && <DiagramView deviceType={deviceType} />}
               {view === 'trace' && <TraceabilityTable deviceType={deviceType} />}
             </div>

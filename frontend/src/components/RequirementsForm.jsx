@@ -171,7 +171,7 @@ const INITIAL_STATE = {
 	verification: { method: 'test', description: '' }
 }
 
-export default function RequirementsForm({ deviceType }) {
+export default function RequirementsForm({ deviceType, setView }) {
 	const [req, setReq] = useState(INITIAL_STATE)
 	const [loading, setLoading] = useState(false)
 	const [msg, setMsg] = useState(null)
@@ -244,6 +244,13 @@ export default function RequirementsForm({ deviceType }) {
 			await addRequirement(payload)
 			setMsg({ type: 'success', text: `Requirement ${enriched.id} added successfully.` })
 			setSubmittedReqs(prev => [payload, ...prev].slice(0, 5))
+
+			// Navigate to the design page after a short delay for UX
+			if (setView) {
+				setTimeout(() => {
+					setView('design')
+				}, 600)
+			}
 		} catch (err) {
 			console.error('SUBMIT_ERROR:', err)
 			const errorDetail = err.response?.data?.detail
@@ -261,7 +268,7 @@ export default function RequirementsForm({ deviceType }) {
 	}
 
 	const SectionHeader = ({ title, icon: Icon }) => (
-		<div className="flex items-center gap-2 border-b pb-2 mb-4 mt-8">
+		<div className="flex items-center gap-2 border-b pb-2 mb-4">
 			<Icon size={16} className="text-muted-foreground" />
 			<h4 className="text-sm font-semibold tracking-tight text-foreground">{title}</h4>
 		</div>
