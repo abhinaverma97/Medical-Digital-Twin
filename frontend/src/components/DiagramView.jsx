@@ -107,7 +107,7 @@ const TABS = [
   { id: 'environment', label: 'Environment', icon: Thermometer },
 ]
 
-export default function DiagramView({ deviceType }) {
+export default function DiagramView({ deviceType, onDesignReady }) {
   const [loading, setLoading] = useState(false)
   const [loadingStatus, setLoadingStatus] = useState('')
   const [error, setError] = useState(null)
@@ -178,6 +178,11 @@ export default function DiagramView({ deviceType }) {
       const aiRes = await generateDesignDetails(deviceType)
       if (aiRes.data.error) throw new Error(aiRes.data.error)
       setAiDetails(aiRes.data.data)
+
+      // Notify app that design is ready for simulation consumption
+      if (onDesignReady) {
+        onDesignReady({ graph: raw, details: aiRes.data.data });
+      }
 
     } catch (err) {
       setError(err.message || 'Generation failed. Ensure requirements exist.')

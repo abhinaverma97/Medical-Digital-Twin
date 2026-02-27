@@ -14,6 +14,7 @@ design_graph = None
 DEVICE_MAP = {
     "ventilator": Ventilator,
     "pulse_ox": PulseOximeter,
+    "pulse_oximeter": PulseOximeter,
     "dialysis": DialysisMachine
 }
 

@@ -101,9 +101,24 @@ class DialysisTwin(BaseDigitalTwin):
         }
 
     def apply_fault(self, param: str, bias: float):
-        if param.lower() == "clotting":
-            self.clot_factor = max(1.0, self.clot_factor * (1 + bias))
-        elif param.lower() == "air":
+        p = param.lower()
+        if p == "clotting" or p == "clog":
+            # Membrane clotting: increases filter resistance → high TMP
+            self.clot_factor = max(1.0, self.clot_factor + abs(bias) * 2.0)
+        elif p == "air" or p == "leak":
+            # Air embolism risk: triggers air-in-blood safety system
             self.air_bubble = bias > 0
-        elif param.lower() == "hypotension":
+        elif p == "hypotension":
+            # Patient hypotension: drops blood flow target
             self.hypotension = bias > 0
+        elif p == "resistance":
+            # Generic resistance increase → clot factor rise → TMP spike
+            self.clot_factor = max(1.0, self.clot_factor * (1 + abs(bias)))
+        elif p == "compliance":
+            # Conductivity deviation → shifts dialysate flow
+            self.target_dfr = max(100.0, self.target_dfr * (1 + bias))
+        else:
+            # Fallback: try direct attribute
+            if hasattr(self, param):
+                original = getattr(self, param)
+                setattr(self, param, original * (1 + bias))
