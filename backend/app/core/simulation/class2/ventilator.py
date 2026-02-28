@@ -120,9 +120,24 @@ class VentilatorTwin(BaseDigitalTwin):
 
     # What-If Triggers mapped from UI
     def apply_fault(self, param: str, bias: float):
-        if param.lower() == "compliance":
+        p = param.lower()
+        if p == "compliance":
+            # Lung stiffness: reduce compliance (ARDS, pneumothorax)
             self.compliance = max(5.0, self.compliance * (1 + bias))
-        elif param.lower() == "resistance":
+        elif p == "resistance":
+            # Airway resistance increase (sensor noise, tubing kink)
             self.resistance = max(1.0, self.resistance * (1 + bias))
-        elif param.lower() == "rate":
+        elif p == "rate":
             self.RR = max(5.0, self.RR * (1 + bias))
+        elif p == "leak":
+            # Circuit leak: reduces effective tidal volume + drops compliance
+            self.Vt = max(100.0, self.Vt * (1 - abs(bias)))
+            self.compliance = max(10.0, self.compliance * (1 - abs(bias) * 0.3))
+        elif p == "clog":
+            # Obstruction / filter occlusion: dramatically increases resistance
+            self.resistance = self.resistance + abs(bias) * 15.0
+        else:
+            # fallback: try direct attribute
+            if hasattr(self, param):
+                original = getattr(self, param)
+                setattr(self, param, original * (1 + bias))

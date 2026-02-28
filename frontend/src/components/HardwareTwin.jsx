@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { AlertTriangle, Zap, ShieldCheck, Activity, Database, ExternalLink, Info, Bell, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { HW_CONFIGS, BUS_COLORS, POWER_COLORS } from './HardwareTwinConfig';
+import { buildHWConfigFromDesign } from './designToHWConfig';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -137,8 +138,12 @@ function ElectronicsBlock({ block, faultedTargets, selectedComponent, modes }) {
 
 // ─── Main HardwareTwin Component ─────────────────────────────────────────────
 
-export default function HardwareTwin({ deviceType, modes = {}, selectedComponent, onInjectFault, simRunning }) {
-    const cfg = HW_CONFIGS[deviceKey(deviceType)];
+export default function HardwareTwin({ deviceType, designData, modes = {}, selectedComponent, onInjectFault, simRunning }) {
+    const key = deviceKey(deviceType);
+    const cfg = useMemo(() => {
+        if (designData) return buildHWConfigFromDesign(key, designData);
+        return HW_CONFIGS[key];
+    }, [key, designData]);
     const [faultedTargets, setFaultedTargets] = useState([]);
     const [activeHWFault, setActiveHWFault] = useState(null);
     const [hwEventLog, setHwEventLog] = useState([]);

@@ -107,7 +107,7 @@ const TABS = [
   { id: 'verification', label: 'Verification Matrix', icon: ShieldAlert, iec: 'FDA 820.30(g)' },
 ]
 
-export default function DiagramView({ deviceType }) {
+export default function DiagramView({ deviceType, onDesignReady }) {
   const [loading, setLoading] = useState(false)
   const [loadingStatus, setLoadingStatus] = useState('')
   const [error, setError] = useState(null)

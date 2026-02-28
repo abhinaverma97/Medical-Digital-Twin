@@ -163,12 +163,14 @@ def _extract_dialysis_params(requirements):
 TWIN_MAP = {
     "ventilator": VentilatorTwin,
     "pulse_ox": PulseOximeterTwin,
+    "pulse_oximeter": PulseOximeterTwin,
     "dialysis": DialysisTwin
 }
 
 PARAM_EXTRACTOR_MAP = {
     "ventilator": _extract_ventilator_params,
     "pulse_ox": _extract_pulse_ox_params,
+    "pulse_oximeter": _extract_pulse_ox_params,
     "dialysis": _extract_dialysis_params
 }
 

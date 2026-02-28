@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
     Play, Pause, RotateCcw, Activity, Zap, AlertTriangle,
     Save, Cpu, ShieldCheck, Database, FastForward, Clock,
@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { DEVICE_CONFIGS, FIDELITY_DESCRIPTIONS, FIDELITY_FAULT_LOCK } from './SimulatorConfig';
 import HardwareTwin from './HardwareTwin';
+import { buildSimConfigFromDesign } from './designToSimConfig';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -439,8 +440,12 @@ function AnalysisPanel({ deviceConfig, fidelity, onInjectFault, safetyLog, scena
 
 // ─── Root Component ───────────────────────────────────────────────────────────
 
-export default function ProfessionalSimulator({ deviceType }) {
-    const cfg = DEVICE_CONFIGS[deviceKey(deviceType)] || DEVICE_CONFIGS.pulse_oximeter;
+export default function ProfessionalSimulator({ deviceType, designData }) {
+    const key = deviceKey(deviceType);
+    const cfg = useMemo(() => {
+        if (designData) return buildSimConfigFromDesign(key, designData);
+        return DEVICE_CONFIGS[key] || DEVICE_CONFIGS.pulse_oximeter;
+    }, [key, designData]);
 
     const [simState, setSimState] = useState('IDLE');
     const [fidelity, setFidelity] = useState('L2');
@@ -475,11 +480,55 @@ export default function ProfessionalSimulator({ deviceType }) {
                     return [...prev.slice(-90), row];
                 });
             }
-            // Safety event detection
+            // Safety event detection — generic across all device configs
             const vals = snap.values || {};
+            const events = [];
             if (vals.ReliefValve === 'OPEN') {
                 const rule = cfg.safetyRules.find(r => r.rule.includes('Relief'));
-                if (rule) setSafetyLog(p => [`T=${snap.t.toFixed(1)}s — ${rule.rule} (${rule.iso})`, ...p.slice(0, 9)]);
+                if (rule) events.push(`T=${snap.t.toFixed(1)}s — ${rule.rule} (${rule.iso})`);
+            }
+            // High pressure detection (ventilator)
+            if (vals.Pressure !== undefined && vals.Pressure > 35) {
+                const rule = cfg.safetyRules.find(r => r.rule.includes('High Pressure'));
+                if (rule) events.push(`T=${snap.t.toFixed(1)}s — ${rule.rule}: ${vals.Pressure.toFixed(1)} cmH₂O (${rule.iso})`);
+            }
+            // Low minute volume detection (ventilator)
+            if (vals.Flow !== undefined && vals.Flow < 2 && vals.Flow !== 0) {
+                const rule = cfg.safetyRules.find(r => r.rule.includes('Low Minute'));
+                if (rule) events.push(`T=${snap.t.toFixed(1)}s — ${rule.rule}: ${vals.Flow.toFixed(1)} L/min (${rule.iso})`);
+            }
+            // Disconnect detection (ventilator)
+            if (vals.Pressure !== undefined && vals.Pressure < 2 && vals.Pressure !== 0) {
+                const rule = cfg.safetyRules.find(r => r.rule.includes('Disconnect'));
+                if (rule) events.push(`T=${snap.t.toFixed(1)}s — ${rule.rule} (${rule.iso})`);
+            }
+            // Low SpO2 detection (pulse oximeter)
+            if (vals.SpO2 !== undefined && vals.SpO2 < 90) {
+                const rule = cfg.safetyRules.find(r => r.rule.includes('Low SpO₂'));
+                if (rule) events.push(`T=${snap.t.toFixed(1)}s — ${rule.rule}: ${vals.SpO2.toFixed(1)}% (${rule.iso})`);
+            }
+            // High TMP detection (dialysis)
+            if (vals.TMP !== undefined && vals.TMP > 300) {
+                const rule = cfg.safetyRules.find(r => r.rule.includes('High TMP'));
+                if (rule) events.push(`T=${snap.t.toFixed(1)}s — ${rule.rule}: ${vals.TMP.toFixed(0)} mmHg (${rule.iso})`);
+            }
+            // Venous clamp engaged (dialysis)
+            if (vals.VenousClamp === 'CLOSED') {
+                const rule = cfg.safetyRules.find(r => r.rule.includes('Venous Clamp'));
+                if (rule) events.push(`T=${snap.t.toFixed(1)}s — ${rule.rule} (${rule.iso})`);
+            }
+            // Air-in-blood alert (dialysis)
+            if (vals.AirAlert === 'YES') {
+                const rule = cfg.safetyRules.find(r => r.rule.includes('Air Detector'));
+                if (rule) events.push(`T=${snap.t.toFixed(1)}s — ${rule.rule} (${rule.iso})`);
+            }
+            // BFR hypotension drop (dialysis)
+            if (vals.BFR !== undefined && vals.BFR > 0 && vals.BFR < 150) {
+                const rule = cfg.safetyRules.find(r => r.rule.includes('Hypotension'));
+                if (rule) events.push(`T=${snap.t.toFixed(1)}s — ${rule.rule}: BFR=${vals.BFR.toFixed(0)} mL/min (${rule.iso})`);
+            }
+            if (events.length > 0) {
+                setSafetyLog(p => [...events, ...p].slice(0, 20));
             }
             setAnimIdx(p => p + 1);
         }, delay);
@@ -527,8 +576,15 @@ export default function ProfessionalSimulator({ deviceType }) {
 
     const handleModeChange = (comp, mode) => {
         setModes(prev => ({ ...prev, [comp]: mode }));
-        if (mode === 'Failed') startSimulation('compliance', -0.9);
-        else if (mode === 'Noisy') startSimulation('leak', 0.15);
+        // Device-specific fault mapping
+        const faultMap = {
+            ventilator: { Failed: ['compliance', -0.9], Noisy: ['leak', 0.15] },
+            dialysis: { Failed: ['clog', 0.7], Noisy: ['resistance', 0.5] },
+            pulse_oximeter: { Failed: ['compliance', -0.8], Noisy: ['leak', 0.2] },
+        };
+        const mapping = faultMap[key] || faultMap.ventilator;
+        if (mode === 'Failed' && mapping.Failed) startSimulation(mapping.Failed[0], mapping.Failed[1]);
+        else if (mode === 'Noisy' && mapping.Noisy) startSimulation(mapping.Noisy[0], mapping.Noisy[1]);
     };
 
     const handleSnap = () => {
@@ -564,7 +620,7 @@ export default function ProfessionalSimulator({ deviceType }) {
                         {label}
                     </button>
                 ))}
-                <div className="ml-auto text-[8px] text-[#878787] font-mono italic pr-2">Both layers derive from Design Graph v{cfg.designVersion}</div>
+                <div className="ml-auto text-[8px] text-[#878787] font-mono italic pr-2">Both layers derive from Design Graph{cfg.designVersion ? ` v${cfg.designVersion}` : ''}</div>
             </div>
 
             {/* ── Layer-1: System Twin ── */}
@@ -595,6 +651,7 @@ export default function ProfessionalSimulator({ deviceType }) {
                 <div className="flex-1 overflow-hidden min-h-0">
                     <HardwareTwin
                         deviceType={deviceType}
+                        designData={designData}
                         modes={modes}
                         selectedComponent={null}
                         onInjectFault={(p, b) => startSimulation(p, b)}
