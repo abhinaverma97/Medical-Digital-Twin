@@ -114,6 +114,7 @@ class DynamicDesignEngine:
         validation = self._validate_design(subsystems, components, requirements)
         
         return {
+            "device_name": f"{requirements.get('device_type', 'Medical Device').title()} Digital Twin",
             "subsystems": subsystems,
             "components": components,
             "interfaces": interfaces,

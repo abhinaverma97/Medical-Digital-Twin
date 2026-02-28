@@ -24,7 +24,11 @@ class ISO60601SafetyChecks:
         req_subsystems = {r.subsystem for r in requirements if r.subsystem}
 
         # ── Rule 1: every design-graph subsystem must be requirement-backed ──
-        for subsystem_name in design_graph.subsystems:
+        # Handle design_graph as dict (new dynamic design system)
+        subsystems = design_graph.get("subsystems", []) if isinstance(design_graph, dict) else design_graph.subsystems
+        subsystem_names = [sub["id"] if isinstance(sub, dict) else sub for sub in subsystems]
+        
+        for subsystem_name in subsystem_names:
             if subsystem_name not in req_subsystems:
                 violations.append(
                     f"Subsystem '{subsystem_name}' has no associated requirements "

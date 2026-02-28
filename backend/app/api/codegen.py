@@ -22,7 +22,9 @@ def generate_code():
     requirements = store.get_all()
     
     # Define output path
-    device_slug = design_graph.device_name.lower().replace(" ", "_")
+    # Handle design_graph as dict (new dynamic design system)
+    device_name = design_graph.get("device_name", "medical_device") if isinstance(design_graph, dict) else design_graph.device_name
+    device_slug = device_name.lower().replace(" ", "_")
     output_dir = f"generated_repos/{device_slug}"
     
     # Template directory is core/codegen/templates
@@ -43,6 +45,6 @@ def generate_code():
     
     return {
         "status": "success",
-        "message": f"Code repository generated for {design_graph.device_name}",
+        "message": f"Code repository generated for {device_name}",
         "path": os.path.abspath(output_dir)
     }
