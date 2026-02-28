@@ -77,15 +77,7 @@ class DialysisTwin(BaseDigitalTwin):
             # TMP proportional to BFR pushing through resistance
             tmp = (bfr * resistance) + (dfr * 0.05) + (noise * 2)
 
-            # Safety 1: Air-in-Blood (REQ-DIAL-001)
-            if self.air_bubble:
-                self.safety_trip_air = True
-                bfr = 0.0
-                venous_clamp = "CLOSED"
-            else:
-                self.safety_trip_air = False
-
-            # Safety 2: Max TMP Alarm
+            # Safety 1: Max TMP Alarm
             if self.safety_trip_tmp:
                 bfr = 0.0
                 venous_clamp = "CLOSED"
@@ -93,8 +85,14 @@ class DialysisTwin(BaseDigitalTwin):
                 self.safety_trip_tmp = True
                 bfr = 0.0
                 venous_clamp = "CLOSED"
+
+            # Safety 2: Air-in-Blood (REQ-DIAL-001)
+            if self.air_bubble:
+                self.safety_trip_air = True
+                bfr = 0.0
+                venous_clamp = "CLOSED"
             else:
-                self.safety_trip_tmp = False
+                self.safety_trip_air = False
 
         # Telemetry Mapping (Architectural)
         if venous_clamp == "OPEN":
@@ -118,17 +116,18 @@ class DialysisTwin(BaseDigitalTwin):
     def apply_fault(self, param: str, bias: float):
         p = param.lower()
         if p == "clotting" or p == "clog":
-            # Membrane clotting: increases filter resistance → high TMP
-            self.clot_factor = max(1.0, self.clot_factor + abs(bias) * 2.0)
+            # Membrane clotting: heavily increases filter resistance → high TMP
+            self.clot_factor = max(1.0, self.clot_factor + abs(bias) * 5.0)
         elif p == "air" or p == "leak":
             # Air embolism risk: triggers air-in-blood safety system
             self.air_bubble = bias > 0
         elif p == "hypotension":
             # Patient hypotension: drops blood flow target
             self.hypotension = bias > 0
+            self.target_bfr = self.target_bfr * 0.3
         elif p == "resistance":
             # Generic resistance increase → clot factor rise → TMP spike
-            self.clot_factor = max(1.0, self.clot_factor * (1 + abs(bias)))
+            self.clot_factor = max(1.0, self.clot_factor * (1 + abs(bias) * 5.0))
         elif p == "compliance":
             # Conductivity deviation → shifts dialysate flow
             self.target_dfr = max(100.0, self.target_dfr * (1 + bias))

@@ -568,8 +568,8 @@ export default function DiagramView({ deviceType, onDesignReady, setView }) {
           <h2 className="text-2xl font-semibold tracking-tight">Interactive Systems Engineering Dashboard</h2>
         </div>
         <div className="flex gap-3">
-          {hasGraph && setView && (
-            <Button onClick={() => setView('simulation')} className="gap-2 bg-[#38BDF8]/20 text-[#38BDF8] border border-[#38BDF8]/50 hover:bg-[#38BDF8]/30">
+          {verificationMatrix && setView && (
+            <Button onClick={() => setView('simulation')} className="gap-2 bg-[#38BDF8]/20 text-[#38BDF8] border border-[#38BDF8]/50 hover:bg-[#38BDF8]/30 mt-auto">
               <MonitorPlay className="h-4 w-4" /> Simulate
             </Button>
           )}
