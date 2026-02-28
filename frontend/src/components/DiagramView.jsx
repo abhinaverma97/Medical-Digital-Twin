@@ -121,6 +121,11 @@ export default function DiagramView({ deviceType, onDesignReady }) {
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
   const [hasGraph, setHasGraph] = useState(false)
 
+  const [subNodes, setSubNodes, onSubNodesChange] = useNodesState([])
+  const [subEdges, setSubEdges, onSubEdgesChange] = useEdgesState([])
+  const [detNodes, setDetNodes, onDetNodesChange] = useNodesState([])
+  const [detEdges, setDetEdges, onDetEdgesChange] = useEdgesState([])
+
   const handleGenerate = async () => {
     setLoading(true)
     setError(null)
@@ -179,13 +184,101 @@ export default function DiagramView({ deviceType, onDesignReady }) {
       setLoadingStatus('Generating specifications...')
       const aiRes = await generateDesignDetails(deviceType)
       if (aiRes.data.error) throw new Error(aiRes.data.error)
-      setAiDetails(aiRes.data.data)
+      const aiData = aiRes.data.data
+      setAiDetails(aiData)
+
+      if (aiData?.Architecture?.Subsystems) {
+        const sNodes = []
+        const sEdges = []
+
+        sNodes.push({
+          id: 'sys-core',
+          type: 'customNode',
+          data: { label: 'System Controller', type: 'Core', components: [{ category: 'Management', name: 'Main Orchestrator' }] },
+          position: { x: 0, y: 0 }
+        })
+
+        aiData.Architecture.Subsystems.forEach((sub, i) => {
+          sNodes.push({
+            id: `sub-${i}`,
+            type: 'customNode',
+            data: { label: sub.name, type: 'Subsystem', components: (sub.components || []).map(c => ({ category: 'Component', name: c })) },
+            position: { x: 0, y: 0 }
+          })
+          sEdges.push({
+            id: `e-sys-sub-${i}`,
+            source: 'sys-core',
+            target: `sub-${i}`,
+            animated: true,
+            label: 'Control/Data',
+            type: 'default',
+            style: { stroke: '#38BDF8', strokeWidth: 1.5 },
+            markerEnd: { type: MarkerType.ArrowClosed, color: '#38BDF8' }
+          })
+        })
+
+        const { nodes: lSubNodes, edges: lSubEdges } = getLayoutedElements(sNodes, sEdges, 'TB')
+        setSubNodes(lSubNodes)
+        setSubEdges(lSubEdges)
+      }
 
       // Step 3: Fetch detailed design (IEC 62304 §5.5)
       setLoadingStatus('Loading detailed design...')
       const detailRes = await getDetailedDesign(deviceType)
       if (detailRes.data.error) throw new Error(detailRes.data.error)
-      setDetailedDesign(detailRes.data)
+      const detData = detailRes.data
+      setDetailedDesign(detData)
+
+      if (detData?.bom || detData?.firmware_architecture) {
+        const dNodes = []
+        const dEdges = []
+
+        const tasks = detData?.firmware_architecture?.tasks || []
+        dNodes.push({
+          id: 'fw-core',
+          type: 'customNode',
+          data: {
+            label: detData?.firmware_architecture?.rtos || 'Firmware Kernel',
+            type: 'Software',
+            components: tasks.map(t => ({ category: 'RTOS Task', name: t.name }))
+          },
+          position: { x: 0, y: 0 }
+        })
+
+        const bomBySub = (detData?.bom || []).reduce((acc, item) => {
+          if (!acc[item.subsystem]) acc[item.subsystem] = [];
+          acc[item.subsystem].push(item);
+          return acc;
+        }, {});
+
+        Object.keys(bomBySub).forEach((subName, i) => {
+          const parts = bomBySub[subName].slice(0, 4)
+          dNodes.push({
+            id: `det-sub-${i}`,
+            type: 'customNode',
+            data: {
+              label: subName,
+              type: 'Hardware Assembly',
+              components: parts.map(p => ({ category: p.part_number, name: p.description?.substring(0, 25) || 'Component' }))
+            },
+            position: { x: 0, y: 0 }
+          })
+          dEdges.push({
+            id: `e-fw-det-${i}`,
+            source: 'fw-core',
+            target: `det-sub-${i}`,
+            animated: true,
+            label: 'Hardware Abstraction',
+            type: 'default',
+            style: { stroke: '#10b981', strokeWidth: 1.5 },
+            markerEnd: { type: MarkerType.ArrowClosed, color: '#10b981' }
+          })
+        })
+
+        const { nodes: lDetNodes, edges: lDetEdges } = getLayoutedElements(dNodes, dEdges, 'TB')
+        setDetNodes(lDetNodes)
+        setDetEdges(lDetEdges)
+      }
 
       // Step 4: Fetch verification matrix (FDA 21 CFR 820.30(g))
       setLoadingStatus('Building verification matrix...')
@@ -236,7 +329,18 @@ export default function DiagramView({ deviceType, onDesignReady }) {
       case 'subsystem':
         // IEC 62304 §5.4: Subsystem/Module Design
         return (
-          <div className="space-y-6">
+          <div className="space-y-6 flex flex-col h-full">
+            {subNodes.length > 0 && (
+              <div className="w-full h-[400px] border border-white/10 rounded-2xl overflow-hidden bg-[#212121] relative shadow-inner shrink-0 mb-4">
+                <ReactFlow
+                  nodes={subNodes} edges={subEdges} onNodesChange={onSubNodesChange} onEdgesChange={onSubEdgesChange}
+                  nodeTypes={nodeTypes} fitView fitViewOptions={{ padding: 0.1 }} minZoom={0.2} maxZoom={2} className="bg-[#212121]"
+                >
+                  <Background gap={16} size={1} color="#2f2f2f" />
+                  <Controls className="bg-[#171717] fill-white border-[#2f2f2f]" buttonClassName="border-b-[#2f2f2f] hover:bg-[#2f2f2f]" />
+                </ReactFlow>
+              </div>
+            )}
             <div className="bg-[#171717] border border-white/10 p-5 rounded-xl text-sm text-[#ececec] leading-relaxed">
               <div className="flex items-center justify-between mb-2">
                 <h4 className="font-semibold text-[#878787] uppercase text-xs tracking-wider">System Overview</h4>
@@ -251,7 +355,7 @@ export default function DiagramView({ deviceType, onDesignReady }) {
             <RenderTable headers={['Module Name', 'Safety Class', 'Language', 'RTOS Dependency']} data={aiDetails.Software?.SoftwareModules} />
           </div>
         )
-      
+
       case 'detailed':
         // IEC 62304 §5.5: Detailed Design
         if (!detailedDesign) {
@@ -263,24 +367,35 @@ export default function DiagramView({ deviceType, onDesignReady }) {
           )
         }
         return (
-          <div className="space-y-6">
+          <div className="space-y-6 flex flex-col h-full">
+            {detNodes.length > 0 && (
+              <div className="w-full h-[400px] border border-white/10 rounded-2xl overflow-hidden bg-[#212121] relative shadow-inner shrink-0 mb-4">
+                <ReactFlow
+                  nodes={detNodes} edges={detEdges} onNodesChange={onDetNodesChange} onEdgesChange={onDetEdgesChange}
+                  nodeTypes={nodeTypes} fitView fitViewOptions={{ padding: 0.1 }} minZoom={0.2} maxZoom={2} className="bg-[#212121]"
+                >
+                  <Background gap={16} size={1} color="#2f2f2f" />
+                  <Controls className="bg-[#171717] fill-white border-[#2f2f2f]" buttonClassName="border-b-[#2f2f2f] hover:bg-[#2f2f2f]" />
+                </ReactFlow>
+              </div>
+            )}
             {/* BOM Section */}
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h4 className="font-semibold text-[#878787] uppercase text-xs tracking-wider">Bill of Materials (BOM)</h4>
                 <span className="text-[10px] text-[#38BDF8] font-mono">IEC 62304 §5.5 / FDA DHF</span>
               </div>
-              <RenderTable 
-                headers={['Item', 'Part Number', 'Description', 'Manufacturer', 'Qty', 'Cost', 'Subsystem']} 
-                data={detailedDesign.bom?.map(b => ({ 
-                  item: b.item, 
-                  part_number: b.part_number, 
-                  description: b.description, 
-                  manufacturer: b.manufacturer, 
-                  quantity: b.quantity, 
+              <RenderTable
+                headers={['Item', 'Part Number', 'Description', 'Manufacturer', 'Qty', 'Cost', 'Subsystem']}
+                data={detailedDesign.bom?.map(b => ({
+                  item: b.item,
+                  part_number: b.part_number,
+                  description: b.description,
+                  manufacturer: b.manufacturer,
+                  quantity: b.quantity,
                   unit_cost: b.unit_cost,
-                  subsystem: b.subsystem 
-                }))} 
+                  subsystem: b.subsystem
+                }))}
               />
             </div>
 
@@ -293,14 +408,14 @@ export default function DiagramView({ deviceType, onDesignReady }) {
               {detailedDesign.pcb_components && Object.entries(detailedDesign.pcb_components).map(([subsystem, components]) => (
                 <div key={subsystem} className="mb-4">
                   <h5 className="text-xs font-semibold text-[#ececec] mb-2">{subsystem}</h5>
-                  <RenderTable 
-                    headers={['Reference', 'Part', 'Footprint', 'Value']} 
-                    data={components?.map(c => ({ 
-                      reference: c.reference, 
-                      part: c.part, 
-                      footprint: c.footprint, 
-                      value: c.value 
-                    }))} 
+                  <RenderTable
+                    headers={['Reference', 'Part', 'Footprint', 'Value']}
+                    data={components?.map(c => ({
+                      reference: c.reference,
+                      part: c.part,
+                      footprint: c.footprint,
+                      value: c.value
+                    }))}
                   />
                 </div>
               ))}
@@ -325,25 +440,25 @@ export default function DiagramView({ deviceType, onDesignReady }) {
                 </div>
               </div>
               <h5 className="text-xs font-semibold text-[#ececec] mb-2">RTOS Tasks</h5>
-              <RenderTable 
-                headers={['Task Name', 'Priority', 'Stack', 'Period', 'Description']} 
-                data={detailedDesign.firmware_architecture?.tasks?.map(t => ({ 
-                  name: t.name, 
-                  priority: t.priority, 
-                  stack: t.stack, 
-                  period: t.period, 
-                  description: t.description 
-                }))} 
+              <RenderTable
+                headers={['Task Name', 'Priority', 'Stack', 'Period', 'Description']}
+                data={detailedDesign.firmware_architecture?.tasks?.map(t => ({
+                  name: t.name,
+                  priority: t.priority,
+                  stack: t.stack,
+                  period: t.period,
+                  description: t.description
+                }))}
               />
               <h5 className="text-xs font-semibold text-[#ececec] mb-2 mt-4">Software Modules</h5>
-              <RenderTable 
-                headers={['Module', 'LOC', 'Safety Class', 'Unit Tests']} 
-                data={detailedDesign.firmware_architecture?.modules?.map(m => ({ 
-                  name: m.name, 
-                  loc: m.loc, 
-                  safety_class: m.safety_class, 
-                  unit_tests: m.unit_tests 
-                }))} 
+              <RenderTable
+                headers={['Module', 'LOC', 'Safety Class', 'Unit Tests']}
+                data={detailedDesign.firmware_architecture?.modules?.map(m => ({
+                  name: m.name,
+                  loc: m.loc,
+                  safety_class: m.safety_class,
+                  unit_tests: m.unit_tests
+                }))}
               />
             </div>
           </div>
@@ -370,17 +485,17 @@ export default function DiagramView({ deviceType, onDesignReady }) {
                 <span className="text-[10px] text-[#38BDF8] font-mono">FDA 21 CFR 820.30(g)</span>
               </div>
             </div>
-            <RenderTable 
-              headers={['Req ID', 'Title', 'Subsystem', 'Design Element', 'Verification Method', 'Acceptance Criteria', 'Status']} 
-              data={verificationMatrix.matrix?.map(m => ({ 
-                id: m.requirement_id, 
-                title: m.requirement_title, 
-                subsystem: m.subsystem, 
-                design: m.design_element, 
-                method: m.verification_method, 
-                criteria: m.verification_description, 
-                status: m.status 
-              }))} 
+            <RenderTable
+              headers={['Req ID', 'Title', 'Subsystem', 'Design Element', 'Verification Method', 'Acceptance Criteria', 'Status']}
+              data={verificationMatrix.matrix?.map(m => ({
+                id: m.requirement_id,
+                title: m.requirement_title,
+                subsystem: m.subsystem,
+                design: m.design_element,
+                method: m.verification_method,
+                criteria: m.verification_description,
+                status: m.status
+              }))}
             />
           </div>
         )
