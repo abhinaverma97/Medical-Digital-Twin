@@ -29,61 +29,47 @@
   - Sign up at [console.groq.com](https://console.groq.com)
   - Create a `.env` file in the project root with your API key
 
-### 1. Backend Setup
-1.  Navigate to the project root.
-2.  Create a virtual environment:
-    ```powershell
-    python -m venv venv
-    ```
-3.  Activate the environment:
-    ```powershell
-    # Windows
-    .\venv\Scripts\Activate.ps1
-    # Linux/Mac
-    source venv/bin/activate
-    ```
-4.  Install dependencies:
-    ```powershell
-    pip install -r requirements.txt
-    ```
-5.  Configure environment variables (create `.env` file):
-    ```env
-    GROQ_API_KEY=your_groq_api_key_here
-    DATABASE_URL=sqlite:///D:\Medical-Digital-Twin\rag_metadata.db
-    ```
-6.  **[One-Time] Initialize RAG Knowledge Base**:
-    ```powershell
-    python scripts/setup_full_knowledge_base.py
-    ```
-    This comprehensive setup script will:
-    - Install all required dependencies
-    - Create SQLite database with authority-level schema
-    - **Scrape FDA OpenFDA**: Device classifications, 510(k) summaries (authority_level=4)
-    - **Scrape PubMed**: Medical device literature (authority_level=2)
-    - **Parse KiCad Footprints**: PCB component libraries (authority_level=3)
-    - **Index ISO Standards**: If PDFs are placed in `documents/standards/` (authority_level=5)
-    - **Index Codebase**: Internal templates (authority_level=1)
-    - **Build Vector Index**: Create semantic search embeddings
-    
-    ⏱️ **Expected runtime**: 30-60 minutes for complete setup
-    
-    💡 **Optional**: To add ISO standards (ISO 60601-1, ISO 14971, ISO 62366-2):
-    - Obtain legitimate PDF copies
-    - Place in `documents/standards/` folder
-    - Rerun: `python scripts/setup_full_knowledge_base.py`
-    - Standards receive a **2.0x retrieval boost** in RAG queries
+### 1. Option A: Using Docker (Fastest)
+1. Ensure Docker Desktop is running on your machine.
+2. Build and run the containers from the project root:
+   ```powershell
+   docker-compose up --build
+   ```
+3. Open your browser and navigate to `http://localhost`.
 
-7.  Start the FastAPI server:
-    - **NEW**: Requirements are automatically analyzed using RAG-grounded LLM, referencing ISO standards and FDA guidance.
-3.  **Build Design**: Go to **Design Graph** and click **"Build Design Graph"** to generate the block diagrams.
-4.  **Generate Design Details**: 
-    - Click **"Generate Design Details"** to create comprehensive specifications.
-    - **NEW**: Design generation queries the knowledge base for ISO 60601-1 electrical safety, ISO 62366-2 usability, and FDA regulatory requirements.
-    - Generated designs cite authoritative sources with relevance scores.
-5.  **Simulate**: Use the **Digital Twin** tab to run simulations. You can inject faults to test safety mitigations.
-6.  **Export & Codegen**: In the **Traceability** tab:
-    - Review the Compliance Matrix with ISO/FDA citations.
-    - Click **"Generate Code Repository"** to create a structured codebase in `generated_repos/`.
+### 2. Option B: Running Manually (Frontend + Backend)
+
+**Terminal 1: Start the Backend (FastAPI)**
+1. Navigate to the project root.
+2. Create and activate a virtual environment:
+   ```powershell
+   python -m venv venv
+   .\venv\Scripts\Activate.ps1  # Windows
+   # source venv/bin/activate   # Linux/Mac
+   ```
+3. Install dependencies:
+   ```powershell
+   pip install -r requirements.txt
+   ```
+4. Start the FastAPI server:
+   ```powershell
+   uvicorn backend.app.main:app --reload --port 8000
+   ```
+
+**Terminal 2: Start the Frontend (Vite/React)**
+1. Open a new terminal and navigate to the frontend directory:
+   ```powershell
+   cd frontend
+   ```
+2. Install dependencies:
+   ```powershell
+   npm install
+   ```
+3. Start the development server:
+   ```powershell
+   npm run dev
+   ```
+4. Open your browser and navigate to `http://localhost:5173`.
 
 ---
 
@@ -109,14 +95,17 @@ The system uses an **authority-weighted retrieval-augmented generation (RAG)** a
 - **KiCad Footprints** - PCB component libraries with package specifications
 - **Component Datasheets** - Sensor specs, MCU documentation (from caches)
 
-### Updating Knowledge Base
+### Generating and Updating the RAG Architecture (One-Time Setup)
 
-To refresh FDA/PubMed data or add new ISO standards:
+To build the database, download the FDA logs, cache PubMed literature, and index ISO standards, run the setup script:
+
 ```powershell
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
 python scripts/setup_full_knowledge_base.py
 ```
-
-The script will detect existing data and only update what's changed.
+This script will detect existing data and only update what's changed. Note that a full first-time rebuild will take 30-60 minutes to pull all PDF rules.
 
 ---
 
@@ -139,11 +128,7 @@ The script will detect existing data and only update what's changed.
 - `.samples/`: Pre-configured requirement sets for medical devices.
 - `generated_repos/`: Output directory for the automated code generator.
 - `rag_metadata.db`: SQLite database with 1955 indexed documents
-3.  Start the development server:
-    ```powershell
-    npm run dev
-    ```
-    *The application will be available at `http://localhost:5173`.*
+- `rag_metadata.db`: SQLite database with 1955 indexed documents
 
 ---
 
@@ -153,12 +138,13 @@ The script will detect existing data and only update what's changed.
 2.  **Add Requirements**: 
     - Use the **Requirements** tab to manually add engineering specs.
     - Or click **"Autofill Sample"** to load pre-configured industrial requirements.
-3.  **Build Design**: Go to **Design Graph** and click **"Build Design Graph"** to generate the complete design hierarchy:
+    - Requirements are automatically analyzed using RAG-grounded LLM, referencing ISO standards and FDA guidance.
+3.  **Build Design**: Go to **Graph** and click **"Generate Design Graph"** to generate the complete design hierarchy:
     - **System Architecture (§5.3)**: High-level block diagram of major subsystems
     - **Subsystem Design (§5.4)**: Module-level decomposition with interfaces
     - **Detailed Design (§5.5)**: BOM with part numbers, PCB component specifications, firmware architecture (RTOS tasks, software modules, interrupts)
     - **Verification Matrix**: Requirements→Design→Verification mapping per FDA 21 CFR 820.30(g)
-4.  **Simulate**: Use the **Digital Twin** tab to run simulations. You can inject faults to test safety mitigations.
+4.  **Simulate**: Once the AI finishes generating the Verification Matrix, click **"Simulate"** to map the design specifications directly into physics-based twins. You can inject faults to test safety mitigations.
 5.  **Export & Codegen**: In the **Traceability** tab:
     - Review the Compliance Matrix.
     - Click **"Generate Code Repository"** to create a structured codebase in `generated_repos/`.
