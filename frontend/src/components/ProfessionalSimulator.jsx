@@ -478,52 +478,69 @@ export default function ProfessionalSimulator({ deviceType, designData }) {
                     return [...prev.slice(-90), row];
                 });
             }
-            // Safety event detection — generic across all device configs
+            // Safety event detection — thresholds parsed from design-aware cfg.safetyRules
             const vals = snap.values || {};
             const events = [];
+
+            // Helper: parse a numeric threshold from a rule threshold string like "> 37 cmH₂O" or "< 5 L/min"
+            const parseThreshold = (ruleRef, direction = '>') => {
+                const rule = cfg.safetyRules.find(r => r.rule.includes(ruleRef));
+                if (!rule) return { rule: null, val: null };
+                const match = rule.threshold.match(/[\d.]+/);
+                return { rule, val: match ? parseFloat(match[0]) : null };
+            };
+
             if (vals.ReliefValve === 'OPEN') {
                 const rule = cfg.safetyRules.find(r => r.rule.includes('Relief'));
                 if (rule) events.push(`T=${snap.t.toFixed(1)}s — ${rule.rule} (${rule.iso})`);
             }
-            // High pressure detection (ventilator)
-            if (vals.Pressure !== undefined && vals.Pressure > 35) {
-                const rule = cfg.safetyRules.find(r => r.rule.includes('High Pressure'));
-                if (rule) events.push(`T=${snap.t.toFixed(1)}s — ${rule.rule}: ${vals.Pressure.toFixed(1)} cmH₂O (${rule.iso})`);
+            // High pressure detection (ventilator) — dynamic threshold from cfg
+            if (vals.Pressure !== undefined) {
+                const { rule, val } = parseThreshold('High Pressure');
+                if (rule && val !== null && vals.Pressure > val)
+                    events.push(`T=${snap.t.toFixed(1)}s — ${rule.rule}: ${vals.Pressure.toFixed(1)} cmH₂O (${rule.iso})`);
             }
-            // Low minute volume detection (ventilator)
-            if (vals.Flow !== undefined && vals.Flow < 2 && vals.Flow !== 0) {
-                const rule = cfg.safetyRules.find(r => r.rule.includes('Low Minute'));
-                if (rule) events.push(`T=${snap.t.toFixed(1)}s — ${rule.rule}: ${vals.Flow.toFixed(1)} L/min (${rule.iso})`);
+            // Low minute volume (ventilator)
+            if (vals.Flow !== undefined && vals.Flow !== 0) {
+                const { rule, val } = parseThreshold('Low Minute', '<');
+                if (rule && val !== null && vals.Flow < val)
+                    events.push(`T=${snap.t.toFixed(1)}s — ${rule.rule}: ${vals.Flow.toFixed(1)} L/min (${rule.iso})`);
             }
             // Disconnect detection (ventilator)
-            if (vals.Pressure !== undefined && vals.Pressure < 2 && vals.Pressure !== 0) {
-                const rule = cfg.safetyRules.find(r => r.rule.includes('Disconnect'));
-                if (rule) events.push(`T=${snap.t.toFixed(1)}s — ${rule.rule} (${rule.iso})`);
+            if (vals.Pressure !== undefined && vals.Pressure !== 0) {
+                const { rule, val } = parseThreshold('Disconnect', '<');
+                const threshold = val ?? 2;
+                if (rule && vals.Pressure < threshold)
+                    events.push(`T=${snap.t.toFixed(1)}s — ${rule.rule} (${rule.iso})`);
             }
-            // Low SpO2 detection (pulse oximeter)
-            if (vals.SpO2 !== undefined && vals.SpO2 < 90) {
-                const rule = cfg.safetyRules.find(r => r.rule.includes('Low SpO₂'));
-                if (rule) events.push(`T=${snap.t.toFixed(1)}s — ${rule.rule}: ${vals.SpO2.toFixed(1)}% (${rule.iso})`);
+            // Low SpO2 (pulse oximeter)
+            if (vals.SpO2 !== undefined) {
+                const { rule, val } = parseThreshold('Low SpO₂', '<');
+                if (rule && val !== null && vals.SpO2 < val)
+                    events.push(`T=${snap.t.toFixed(1)}s — ${rule.rule}: ${vals.SpO2.toFixed(1)}% (${rule.iso})`);
             }
-            // High TMP detection (dialysis)
-            if (vals.TMP !== undefined && vals.TMP > 300) {
-                const rule = cfg.safetyRules.find(r => r.rule.includes('High TMP'));
-                if (rule) events.push(`T=${snap.t.toFixed(1)}s — ${rule.rule}: ${vals.TMP.toFixed(0)} mmHg (${rule.iso})`);
+            // High TMP (dialysis) — dynamic threshold
+            if (vals.TMP !== undefined) {
+                const { rule, val } = parseThreshold('High TMP');
+                if (rule && val !== null && vals.TMP > val)
+                    events.push(`T=${snap.t.toFixed(1)}s — ${rule.rule}: ${vals.TMP.toFixed(0)} mmHg (${rule.iso})`);
             }
-            // Venous clamp engaged (dialysis)
+            // Venous clamp (dialysis)
             if (vals.VenousClamp === 'CLOSED') {
                 const rule = cfg.safetyRules.find(r => r.rule.includes('Venous Clamp'));
                 if (rule) events.push(`T=${snap.t.toFixed(1)}s — ${rule.rule} (${rule.iso})`);
             }
-            // Air-in-blood alert (dialysis)
+            // Air-in-blood (dialysis)
             if (vals.AirAlert === 'YES') {
                 const rule = cfg.safetyRules.find(r => r.rule.includes('Air Detector'));
                 if (rule) events.push(`T=${snap.t.toFixed(1)}s — ${rule.rule} (${rule.iso})`);
             }
-            // BFR hypotension drop (dialysis)
-            if (vals.BFR !== undefined && vals.BFR > 0 && vals.BFR < 150) {
-                const rule = cfg.safetyRules.find(r => r.rule.includes('Hypotension'));
-                if (rule) events.push(`T=${snap.t.toFixed(1)}s — ${rule.rule}: BFR=${vals.BFR.toFixed(0)} mL/min (${rule.iso})`);
+            // BFR hypotension drop (dialysis) — dynamic threshold
+            if (vals.BFR !== undefined && vals.BFR > 0) {
+                const { rule, val } = parseThreshold('Hypotension', '<');
+                const threshold = val ?? 150;
+                if (rule && vals.BFR < threshold)
+                    events.push(`T=${snap.t.toFixed(1)}s — ${rule.rule}: BFR=${vals.BFR.toFixed(0)} mL/min (${rule.iso})`);
             }
             if (events.length > 0) {
                 setSafetyLog(p => [...events, ...p].slice(0, 20));

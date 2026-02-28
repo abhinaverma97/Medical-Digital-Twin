@@ -43,6 +43,52 @@ def build_design(device_type: str = "ventilator"):
     }
     
     # Parse requirements to extract capabilities
+    # PASS 1: Read structured fields (req.parameter, req.max_value, req.min_value)
+    # This is the AUTHORITATIVE source — always checked first before text parsing.
+    for r in reqs:
+        if not hasattr(r, 'parameter') or not r.parameter:
+            continue
+        param_lower = r.parameter.lower()
+
+        # Ventilator / Generic flow & pressure
+        if 'flow' in param_lower and 'blood' not in param_lower:
+            if getattr(r, 'max_value', None) is not None:
+                requirements['flow_rate_max'] = float(r.max_value)
+            if getattr(r, 'min_value', None) is not None:
+                requirements.setdefault('flow_rate_min', float(r.min_value))
+
+        if 'pressure' in param_lower:
+            if getattr(r, 'max_value', None) is not None:
+                requirements['pressure_max'] = float(r.max_value)
+
+        # Dialysis-specific structured fields
+        if 'blood' in param_lower or 'bfr' in param_lower:
+            if getattr(r, 'max_value', None) is not None:
+                requirements['blood_flow_rate_max'] = float(r.max_value)
+
+        if 'dialysate' in param_lower or 'dfr' in param_lower:
+            if getattr(r, 'max_value', None) is not None:
+                requirements['dialysate_flow_rate'] = float(r.max_value)
+
+        if 'ultrafiltrat' in param_lower or 'uf' in param_lower:
+            if getattr(r, 'max_value', None) is not None:
+                requirements['uf_rate_max'] = float(r.max_value)
+
+        if 'temperature' in param_lower or 'temp' in param_lower:
+            if getattr(r, 'min_value', None) is not None and getattr(r, 'max_value', None) is not None:
+                requirements['temperature_range'] = [float(r.min_value), float(r.max_value)]
+
+        if 'conductivity' in param_lower:
+            if getattr(r, 'max_value', None) is not None:
+                requirements['conductivity_nominal_ms_cm'] = float(r.max_value)
+                requirements['conductivity_range'] = True
+
+        # Operational mode from type field
+        if getattr(r, 'type', '') == 'performance':
+            if getattr(r, 'description', '') and 'backup' in r.description.lower():
+                requirements['power_backup'] = True
+
+    # PASS 2: Description text-parser (fallback — fills gaps not covered by structured fields)
     for r in reqs:
         if hasattr(r, 'description') and r.description:
             desc_lower = r.description.lower()
@@ -187,26 +233,52 @@ def get_detailed_design(device_type: str = "ventilator"):
     from ..core.design_engine.rules_engine import DynamicDesignEngine
     from ..core.design_graph.dynamic_generator import DynamicGenerator
     
-    # Build requirements
+    # Build requirements from store instead of hardcoding
+    reqs = store.get_all()
     requirements = {
         "device_type": device_type,
         "device_class": "Class II" if device_type.lower() == "ventilator" else "Class III",
         "criticality": "advanced",
-        "monitoring": ["pressure", "flow", "temperature"],
+        "monitoring": [],
         "power_backup": True,
     }
-    
+
+    # Structured field first-pass (same logic as build_design)
+    for r in reqs:
+        if not hasattr(r, 'parameter') or not r.parameter:
+            continue
+        param_lower = r.parameter.lower()
+        if 'flow' in param_lower and 'blood' not in param_lower:
+            if getattr(r, 'max_value', None) is not None:
+                requirements['flow_rate_max'] = float(r.max_value)
+        if 'pressure' in param_lower:
+            if getattr(r, 'max_value', None) is not None:
+                requirements['pressure_max'] = float(r.max_value)
+        if 'blood' in param_lower or 'bfr' in param_lower:
+            if getattr(r, 'max_value', None) is not None:
+                requirements['blood_flow_rate_max'] = float(r.max_value)
+        if 'dialysate' in param_lower or 'dfr' in param_lower:
+            if getattr(r, 'max_value', None) is not None:
+                requirements['dialysate_flow_rate'] = float(r.max_value)
+        if 'ultrafiltrat' in param_lower or 'uf' in param_lower:
+            if getattr(r, 'max_value', None) is not None:
+                requirements['uf_rate_max'] = float(r.max_value)
+        if 'temperature' in param_lower or 'temp' in param_lower:
+            if getattr(r, 'min_value', None) is not None and getattr(r, 'max_value', None) is not None:
+                requirements['temperature_range'] = [float(r.min_value), float(r.max_value)]
+
+    # Device-specific defaults for fields not covered by requirements
     if device_type.lower() == "ventilator":
-        requirements.update({
-            "flow_rate_max": 180,
-            "pressure_max": 60,
-        })
+        requirements.setdefault('flow_rate_max', 120)
+        requirements.setdefault('pressure_max', 40)
     elif device_type.lower() == "dialysis":
-        requirements.update({
-            "temperature_range": [35, 39],
-            "pressure_max": 500,
-            "power_budget_w": 960,
-        })
+        requirements.setdefault('blood_flow_rate_max', 500)
+        requirements.setdefault('dialysate_flow_rate', 500)
+        requirements.setdefault('uf_rate_max', 4000)
+        requirements.setdefault('temperature_range', [35.0, 39.0])
+        requirements.setdefault('conductivity_nominal_ms_cm', 14.0)
+        requirements.setdefault('conductivity_range', True)
+        requirements.setdefault('power_budget_w', 960)
     
     # Generate rule-based design
     engine = DynamicDesignEngine()

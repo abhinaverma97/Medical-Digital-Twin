@@ -15,49 +15,22 @@ simulation_results = []
 
 def _extract_design_specs(device_type: str) -> dict:
     """
-    Extract component specifications from design for simulation integration.
-    NO HARDCODING - Uses dynamically generated design data via Rules Engine.
+    Extract component specifications from the generated design graph for simulation integration.
+    NO HARDCODING - Directly reads from the shared `design_graph` state to ensure the 
+    simulated device mathematically matches the exact architecture designed.
     """
-    from .requirements import store
-    from ..core.design_engine.rules_engine import DynamicDesignEngine
+    from .design import design_graph
     import re
 
-    # 1. Provide requirement mapping to rules engine
-    requirements_list = store.get_all()
-    req_dict = {"device_type": device_type, "monitoring": []}
-
-    if requirements_list:
-        for req in requirements_list:
-            if req.type == "performance" and req.parameter:
-                param_lower = req.parameter.lower()
-                if "blood flow" in param_lower and req.max_value:
-                    req_dict["blood_flow_rate_max"] = req.max_value
-                elif "flow" in param_lower and req.max_value:
-                    req_dict["flow_rate_max"] = req.max_value
-                if "pressure" in param_lower and req.max_value:
-                    req_dict["pressure_max"] = req.max_value
-
-    # Ensure device-specific capabilities are seeded
-    if device_type == "ventilator":
-        req_dict.setdefault("flow_rate_max", 120)
-        req_dict.setdefault("pressure_max", 40)
-        req_dict["monitoring"] = ["pressure", "flow"]
-    elif device_type == "dialysis":
-        req_dict.setdefault("temperature_range", [35, 39])
-        req_dict.setdefault("blood_flow_rate_max", 500)
-        req_dict["monitoring"] = ["pressure", "temperature"]
-
-    # 2. Generate actual dynamic design based on limits
-    engine = DynamicDesignEngine()
-    design_output = engine.generate_design(req_dict)
+    specs = {}
+    if not design_graph or not isinstance(design_graph, dict):
+        return specs # Fallback if design is not yet built
 
     all_components = {}
-    for sub in design_output.get("subsystems", []):
+    for sub in design_graph.get("subsystems", []):
         all_components.update(sub.get("component_specs", {}))
 
-    specs = {}
-
-    # 3. Mathematically tie specific design elements to physics models
+    # Mathematically tie specific design elements to physics models
     if device_type == "ventilator":
         for key, comp in all_components.items():
             if "mass_flow_sensor" in key:
@@ -68,23 +41,45 @@ def _extract_design_specs(device_type: str) -> dict:
                 specs["sensor_accuracy"] = float(acc_val) / 100.0
 
             if key == "proportional_valve":
-                specs["blower_max_rpm"] = 60000 
+                if "max_flow_operating" in comp:
+                    specs["max_flow_rate"] = float(comp["max_flow_operating"])
+                    specs["target_flow_rate"] = specs["max_flow_rate"] / 2.0
                 
             if key == "pressure_relief_valve":
-                specs["relief_valve_threshold"] = float(comp.get("relief_pressure_cmh2o", 80))
+                if "relief_pressure_cmh2o" in comp:
+                    specs["relief_valve_threshold"] = float(comp["relief_pressure_cmh2o"])
+            
+            if key == "pressure_sensor" and "usable_capacity" in comp:
+                specs["max_pressure"] = float(comp["usable_capacity"])
 
     elif device_type == "dialysis":
         if "blood_pump" in all_components:
             pump = all_components["blood_pump"]
-            specs["motor_type"] = pump.get("motor_type", "brushless_dc")
-            specs["pump_accuracy_percent"] = float(pump.get("accuracy_percent", 5.0))
+            if "motor_type" in pump:
+                specs["motor_type"] = pump["motor_type"]
+            if "accuracy_percent" in pump:
+                specs["pump_accuracy_percent"] = float(pump["accuracy_percent"])
+            if "flow_range_ml_min" in pump:
+                match = re.search(r'-(\d+)', str(pump["flow_range_ml_min"]))
+                if match:
+                    specs["target_bfr"] = float(match.group(1)) * 0.6 # Typical running mode at 60% capacity
+
+        if "dialysate_pump" in all_components:
+            pump = all_components["dialysate_pump"]
+            if "flow_range_ml_min" in pump:
+                match = re.search(r'-(\d+)', str(pump["flow_range_ml_min"]))
+                if match:
+                    specs["target_dfr"] = float(match.group(1))
 
         if "air_detector" in all_components:
             detector = all_components["air_detector"]
-            specs["bubble_resolution"] = f"{int(detector.get('sensitivity_ml', 0.1) * 1000)}uL"
+            if "sensitivity_ml" in detector:
+                specs["bubble_resolution"] = f"{int(float(detector['sensitivity_ml']) * 1000)}uL"
 
-        if "arterial_pressure_sensor" in all_components:
-            specs["isolation_rating"] = "5kV RMS"
+        if "venous_pressure_sensor" in all_components:
+            comp = all_components["venous_pressure_sensor"]
+            if "rated_capacity" in comp:
+                specs["max_tmp"] = float(comp["rated_capacity"]) * 0.8
 
     return specs
 
@@ -216,7 +211,8 @@ def run_simulation(steps: int = 10, device_type: str = "ventilator", fidelity: s
     
     # CRITICAL: Extract component specs from design (RAG-driven, not hardcoded)
     design_specs = _extract_design_specs(device_type)
-    params.update(design_specs)  # Merge design specs into simulation params
+    if design_specs:
+        params.update(design_specs)  # Merge design specs into simulation params
     
     twin = twin_class(**params)
     
@@ -258,9 +254,10 @@ def run_faulty_simulation(
     params = extractor(store.get_all())
     params["fidelity"] = fidelity
     
-    # CRITICAL: Extract component specs from design (RAG-driven)
+    # CRITICAL: Extract component specs directly from the active shared design graph
     design_specs = _extract_design_specs(device_type)
-    params.update(design_specs)
+    if design_specs:
+        params.update(design_specs)
     
     twin = twin_class(**params)
     
