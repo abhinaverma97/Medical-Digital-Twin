@@ -179,6 +179,7 @@ export default function DiagramView({ deviceType, onDesignReady }) {
       setEdges(layoutedEdges)
       setHasGraph(true)
       setActiveTab('graph')
+      if (onDesignReady) onDesignReady({ graph: raw })
 
       // Step 2: Generate AI specs
       setLoadingStatus('Generating specifications...')
