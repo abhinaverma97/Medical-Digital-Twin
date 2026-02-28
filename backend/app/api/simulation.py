@@ -65,6 +65,22 @@ def _extract_design_specs(device_type: str) -> dict:
             match = re.search(r'(\d+)', thresh_str)
             if match:
                 specs["relief_valve_threshold"] = float(match.group(1))
+                
+    elif device_type == "dialysis":
+        # Actuator specifications
+        pump_specs = detailed_components.get("Arterial Peristaltic Pump", {})
+        if "motor" in pump_specs:
+            specs["motor_type"] = pump_specs["motor"]
+        
+        # Safety specifications
+        detector_specs = detailed_components.get("Ultrasonic Bubble Detector", {})
+        if "resolution" in detector_specs:
+            specs["bubble_resolution"] = detector_specs["resolution"]
+            
+        # Isolation specifications
+        iso_specs = detailed_components.get("Medical Isolation XFMR", {})
+        if "rating" in iso_specs:
+            specs["isolation_rating"] = iso_specs["rating"]
     
     return specs
 

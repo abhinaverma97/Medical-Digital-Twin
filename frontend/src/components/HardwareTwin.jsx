@@ -8,7 +8,7 @@ import { buildHWConfigFromDesign } from './designToHWConfig';
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const deviceKey = (dt) =>
-    dt === 'ventilator' ? 'ventilator' : dt === 'dialysis' ? 'dialysis' : 'pulse_oximeter';
+    dt === 'ventilator' ? 'ventilator' : 'dialysis';
 
 // ─── SVG: Power Domain Rails ──────────────────────────────────────────────────
 

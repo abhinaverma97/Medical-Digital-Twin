@@ -22,7 +22,6 @@ import { cn } from "@/lib/utils"
 
 const DEVICES = [
   { id: 'ventilator', name: 'Ventilator', class: 'Class II' },
-  { id: 'pulse_ox', name: 'Pulse Oximeter', class: 'Class I' },
   { id: 'dialysis', name: 'Hemodialysis', class: 'Class III' },
 ]
 

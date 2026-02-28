@@ -19,9 +19,7 @@ import { buildSimConfigFromDesign } from './designToSimConfig';
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const deviceKey = (deviceType) =>
-    deviceType === 'ventilator' ? 'ventilator'
-        : deviceType === 'dialysis' ? 'dialysis'
-            : 'pulse_oximeter';
+    deviceType === 'ventilator' ? 'ventilator' : 'dialysis';
 
 const STATUS_COLORS = {
     Ideal: { border: 'rgba(56,189,248,0.4)', led: '#10b981', badge: 'text-sky-400' },
@@ -444,7 +442,7 @@ export default function ProfessionalSimulator({ deviceType, designData }) {
     const key = deviceKey(deviceType);
     const cfg = useMemo(() => {
         if (designData) return buildSimConfigFromDesign(key, designData);
-        return DEVICE_CONFIGS[key] || DEVICE_CONFIGS.pulse_oximeter;
+        return DEVICE_CONFIGS[key] || DEVICE_CONFIGS.dialysis;
     }, [key, designData]);
 
     const [simState, setSimState] = useState('IDLE');
@@ -579,10 +577,9 @@ export default function ProfessionalSimulator({ deviceType, designData }) {
         // Device-specific fault mapping
         const faultMap = {
             ventilator: { Failed: ['compliance', -0.9], Noisy: ['leak', 0.15] },
-            dialysis: { Failed: ['clog', 0.7], Noisy: ['resistance', 0.5] },
-            pulse_oximeter: { Failed: ['compliance', -0.8], Noisy: ['leak', 0.2] },
+            dialysis: { Failed: ['clog', 0.7], Noisy: ['resistance', 0.5] }
         };
-        const mapping = faultMap[key] || faultMap.ventilator;
+        const mapping = faultMap[key] || faultMap.dialysis;
         if (mode === 'Failed' && mapping.Failed) startSimulation(mapping.Failed[0], mapping.Failed[1]);
         else if (mode === 'Noisy' && mapping.Noisy) startSimulation(mapping.Noisy[0], mapping.Noisy[1]);
     };
