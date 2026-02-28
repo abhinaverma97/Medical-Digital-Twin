@@ -1,0 +1,31 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: mdt_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      # Allow frontend proxy through explicitly, or "*" if permissive
+      - CORS_ORIGINS=http://localhost:5173,http://localhost,http://129.154.227.67
+    volumes:
+      # Mount the documents and DB folders if they need to be persistent outside the container
+      - ./documents:/app/documents
+      - ./rag_metadata.db:/app/rag_metadata.db
+      - ./.env:/app/.env
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: mdt_frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  db_data:
