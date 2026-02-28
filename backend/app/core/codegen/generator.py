@@ -24,10 +24,25 @@ class CodeGenerator:
 
         self._generate_main(output_dir)
 
-        for subsystem_name, node in design_graph.subsystems.items():
-            self._generate_subsystem_module(
-                subsystem_name, node, requirements, output_dir
-            )
+        # Handle design_graph as dict (new dynamic design system)
+        if isinstance(design_graph, dict):
+            subsystems_list = design_graph.get("subsystems", [])
+            for subsystem in subsystems_list:
+                if isinstance(subsystem, dict):
+                    subsystem_name = subsystem.get("id", "unknown")
+                    # Build a simple node-like object for template rendering
+                    node = type("Node", (), {
+                        "inputs": subsystem.get("interfaces", []),
+                        "outputs": subsystem.get("interfaces", []),
+                    })()
+                    self._generate_subsystem_module(
+                        subsystem_name, node, requirements, output_dir
+                    )
+        else:
+            for subsystem_name, node in design_graph.subsystems.items():
+                self._generate_subsystem_module(
+                    subsystem_name, node, requirements, output_dir
+                )
 
     def _generate_subsystem_module(
         self, name, node, requirements, output_dir

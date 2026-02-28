@@ -47,7 +47,12 @@ class ISO14971RiskEngine:
         risk_register = []
         overall_status = "PASS"
 
-        safety_reqs = [r for r in requirements if r.type == "safety"]
+        # Evaluate any requirement that is typed "safety" OR carries hazard/severity
+        # data — performance/functional reqs can be safety-relevant (e.g. PIP limits).
+        safety_reqs = [
+            r for r in requirements
+            if r.type == "safety" or r.hazard or r.severity
+        ]
 
         if not safety_reqs:
             return overall_status, risk_register

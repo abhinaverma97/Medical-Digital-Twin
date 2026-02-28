@@ -72,6 +72,13 @@ class TraceabilityMatrix:
         """Maps a requirement to its design graph element (if built)."""
         if req.type == "interface":
             return f"Interface: {req.interface}"
-        if self.design_graph and req.subsystem in self.design_graph.subsystems:
-            return f"Subsystem node: {req.subsystem}"
+        
+        # Handle design_graph as dict (new dynamic design system)
+        if self.design_graph:
+            subsystems = self.design_graph.get("subsystems", []) if isinstance(self.design_graph, dict) else self.design_graph.subsystems
+            subsystem_names = [sub["id"] if isinstance(sub, dict) else sub for sub in subsystems]
+            
+            if req.subsystem in subsystem_names:
+                return f"Subsystem node: {req.subsystem}"
+        
         return f"Subsystem: {req.subsystem or '—'}"
