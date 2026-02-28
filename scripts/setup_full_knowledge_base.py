@@ -84,14 +84,17 @@ def recreate_database():
     """Recreate database with new schema"""
     print_banner("Step 2: Recreating RAG Database")
     
-    # Remove old database
-    db_file = REPO_ROOT / "rag_metadata.db"
-    if db_file.exists():
-        print(f"  Removing old database: {db_file}")
-        db_file.unlink()
+    # Drop all tables instead of unlinking the file, as unlinking a mounted volume 
+    # causes "Device or resource busy" in Docker.
+    from app.core.retrieval.db import init_db, Base, engine
     
+    print("  Dropping existing tables...")
+    try:
+        Base.metadata.drop_all(bind=engine)
+    except Exception as e:
+        print(f"  ⚠ Could not drop tables (might be empty): {e}")
+        
     # Create new schema
-    from app.core.retrieval.db import init_db
     init_db()
     print("  ✓ New database created")
 
