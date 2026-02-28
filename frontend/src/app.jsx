@@ -186,7 +186,7 @@ export default function App() {
           <div className="flex-1 overflow-y-auto">
             <div className="w-full h-full min-h-[600px] p-4 md:p-6 lg:p-10 pt-6 md:pt-10">
               {view === 'requirements' && <RequirementsForm deviceType={deviceType} setView={setView} />}
-              {view === 'design' && <DiagramView deviceType={deviceType} onDesignReady={setDesignData} />}
+              {view === 'design' && <DiagramView deviceType={deviceType} onDesignReady={setDesignData} setView={setView} />}
               {view === 'trace' && <TraceabilityTable deviceType={deviceType} />}
             </div>
           </div>

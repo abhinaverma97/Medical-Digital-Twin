@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react'
 import { buildDesign, generateDesignDetails, getDetailedDesign, getVerificationMatrix } from '../api'
 
 import { Button } from '@/components/ui/button'
-import { GitBranch, AlertCircle, Maximize2, Cpu, Code, Server, Activity, ShieldAlert, Link, Thermometer, ActivitySquare, BrainCircuit } from 'lucide-react'
+import { GitBranch, AlertCircle, Maximize2, Cpu, Code, Server, Activity, ShieldAlert, Link, Thermometer, ActivitySquare, BrainCircuit, MonitorPlay } from 'lucide-react'
 import { cn } from "@/lib/utils"
 
 import { RenderTable, SectionHeader, InfoBox } from './DiagramViewHelper'
@@ -107,7 +107,7 @@ const TABS = [
   { id: 'verification', label: 'Verification Matrix', icon: ShieldAlert, iec: 'FDA 820.30(g)' },
 ]
 
-export default function DiagramView({ deviceType, onDesignReady }) {
+export default function DiagramView({ deviceType, onDesignReady, setView }) {
   const [loading, setLoading] = useState(false)
   const [loadingStatus, setLoadingStatus] = useState('')
   const [error, setError] = useState(null)
@@ -568,6 +568,11 @@ export default function DiagramView({ deviceType, onDesignReady }) {
           <h2 className="text-2xl font-semibold tracking-tight">Interactive Systems Engineering Dashboard</h2>
         </div>
         <div className="flex gap-3">
+          {hasGraph && setView && (
+            <Button onClick={() => setView('simulation')} className="gap-2 bg-[#38BDF8]/20 text-[#38BDF8] border border-[#38BDF8]/50 hover:bg-[#38BDF8]/30">
+              <MonitorPlay className="h-4 w-4" /> Simulate
+            </Button>
+          )}
           <Button onClick={handleGenerate} disabled={loading} className="gap-2 bg-white text-black hover:bg-white/90">
             {loading
               ? <><span className="animate-pulse">{loadingStatus || 'Working...'}</span></>
