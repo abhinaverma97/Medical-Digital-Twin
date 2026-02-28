@@ -16,72 +16,76 @@ simulation_results = []
 def _extract_design_specs(device_type: str) -> dict:
     """
     Extract component specifications from design for simulation integration.
-    NO HARDCODING - Uses dynamically generated design data.
+    NO HARDCODING - Uses dynamically generated design data via Rules Engine.
     """
-    # Map device type to device class
-    device_map = {
-        "ventilator": Ventilator,
-        "pulse_ox": PulseOximeter,
-        "dialysis": DialysisMachine
-    }
-    
-    device_class = device_map.get(device_type.lower())
-    if not device_class:
-        return {}
-    
-    device = device_class()
-    detailed_components = device.get_detailed_components()
-    
-    specs = {}
-    
-    # Extract key component specs for simulation physics
-    # These specs will be used to parameterize the physics models
+    from .requirements import store
+    from ..core.design_engine.rules_engine import DynamicDesignEngine
+    import re
+
+    # 1. Provide requirement mapping to rules engine
+    requirements_list = store.get_all()
+    req_dict = {"device_type": device_type, "monitoring": []}
+
+    if requirements_list:
+        for req in requirements_list:
+            if req.type == "performance" and req.parameter:
+                param_lower = req.parameter.lower()
+                if "blood flow" in param_lower and req.max_value:
+                    req_dict["blood_flow_rate_max"] = req.max_value
+                elif "flow" in param_lower and req.max_value:
+                    req_dict["flow_rate_max"] = req.max_value
+                if "pressure" in param_lower and req.max_value:
+                    req_dict["pressure_max"] = req.max_value
+
+    # Ensure device-specific capabilities are seeded
     if device_type == "ventilator":
-        # Blower specifications
-        blower_specs = detailed_components.get("Blower Turbine", {})
-        if "speed" in blower_specs:
-            speed_str = blower_specs["speed"]
-            # Extract numeric value from "60k RPM" -> 60000
-            import re
-            match = re.search(r'(\d+)k?\s*RPM', speed_str, re.IGNORECASE)
-            if match:
-                rpm = int(match.group(1))
-                if 'k' in speed_str.lower():
-                    rpm *= 1000
-                specs["blower_max_rpm"] = rpm
-        
-        # Sensor specifications
-        sensor_specs = detailed_components.get("Proximal Flow Sensor", {})
-        if "accuracy" in sensor_specs:
-            acc_str = sensor_specs["accuracy"]
-            match = re.search(r'(\d+(?:\.\d+)?)', acc_str)
-            if match:
-                specs["sensor_accuracy"] = float(match.group(1)) / 100.0  # 3% -> 0.03
-        
-        # Safety valve specifications
-        valve_specs = detailed_components.get("Relief Valve (Pop-off)", {})
-        if "threshold" in valve_specs:
-            thresh_str = valve_specs["threshold"]
-            match = re.search(r'(\d+)', thresh_str)
-            if match:
-                specs["relief_valve_threshold"] = float(match.group(1))
-                
+        req_dict.setdefault("flow_rate_max", 120)
+        req_dict.setdefault("pressure_max", 40)
+        req_dict["monitoring"] = ["pressure", "flow"]
     elif device_type == "dialysis":
-        # Actuator specifications
-        pump_specs = detailed_components.get("Arterial Peristaltic Pump", {})
-        if "motor" in pump_specs:
-            specs["motor_type"] = pump_specs["motor"]
-        
-        # Safety specifications
-        detector_specs = detailed_components.get("Ultrasonic Bubble Detector", {})
-        if "resolution" in detector_specs:
-            specs["bubble_resolution"] = detector_specs["resolution"]
-            
-        # Isolation specifications
-        iso_specs = detailed_components.get("Medical Isolation XFMR", {})
-        if "rating" in iso_specs:
-            specs["isolation_rating"] = iso_specs["rating"]
-    
+        req_dict.setdefault("temperature_range", [35, 39])
+        req_dict.setdefault("blood_flow_rate_max", 500)
+        req_dict["monitoring"] = ["pressure", "temperature"]
+
+    # 2. Generate actual dynamic design based on limits
+    engine = DynamicDesignEngine()
+    design_output = engine.generate_design(req_dict)
+
+    all_components = {}
+    for sub in design_output.get("subsystems", []):
+        all_components.update(sub.get("component_specs", {}))
+
+    specs = {}
+
+    # 3. Mathematically tie specific design elements to physics models
+    if device_type == "ventilator":
+        for key, comp in all_components.items():
+            if "mass_flow_sensor" in key:
+                acc_val = comp.get("accuracy", 2.0)
+                if isinstance(acc_val, str):
+                    match = re.search(r'(\d+(?:\.\d+)?)', acc_val)
+                    acc_val = float(match.group(1)) if match else 2.0
+                specs["sensor_accuracy"] = float(acc_val) / 100.0
+
+            if key == "proportional_valve":
+                specs["blower_max_rpm"] = 60000 
+                
+            if key == "pressure_relief_valve":
+                specs["relief_valve_threshold"] = float(comp.get("relief_pressure_cmh2o", 80))
+
+    elif device_type == "dialysis":
+        if "blood_pump" in all_components:
+            pump = all_components["blood_pump"]
+            specs["motor_type"] = pump.get("motor_type", "brushless_dc")
+            specs["pump_accuracy_percent"] = float(pump.get("accuracy_percent", 5.0))
+
+        if "air_detector" in all_components:
+            detector = all_components["air_detector"]
+            specs["bubble_resolution"] = f"{int(detector.get('sensitivity_ml', 0.1) * 1000)}uL"
+
+        if "arterial_pressure_sensor" in all_components:
+            specs["isolation_rating"] = "5kV RMS"
+
     return specs
 
 

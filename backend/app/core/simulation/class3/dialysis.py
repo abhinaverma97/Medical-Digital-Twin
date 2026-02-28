@@ -17,6 +17,7 @@ class DialysisTwin(BaseDigitalTwin):
         motor_type: str = None,
         bubble_resolution: str = None,
         isolation_rating: str = None,
+        pump_accuracy_percent: float = None,
         **kwargs
     ):
         super().__init__(fidelity)
@@ -26,8 +27,9 @@ class DialysisTwin(BaseDigitalTwin):
         
         # Design specs integration
         self.motor_type = motor_type if motor_type else "Standard DC"
-        self.bubble_resolution = bubble_resolution if bubble_resolution else "10uL"
+        self.bubble_resolution = bubble_resolution if bubble_resolution else "100uL"
         self.isolation_rating = isolation_rating if isolation_rating else "4kV"
+        self.pump_accuracy_percent = pump_accuracy_percent if pump_accuracy_percent else 5.0
 
         # Physiological / What-If states
         self.clot_factor = 1.0     # 1.0 = clean filter. >1 = clotting
@@ -62,7 +64,11 @@ class DialysisTwin(BaseDigitalTwin):
             pump_rpm = actual_target_bfr / 5.0  # arbitrary volume per rev
             pulse_freq = (pump_rpm / 60.0) * 2.0 * math.pi
             
-            bfr = actual_target_bfr + (20.0 * math.sin(t * pulse_freq)) + noise
+            # Hardware design accuracy scales the pump flow noise/variance
+            accuracy_variance = (self.pump_accuracy_percent / 100.0) * actual_target_bfr
+            pump_noise = noise * (accuracy_variance / 5.0)
+            
+            bfr = actual_target_bfr + (20.0 * math.sin(t * pulse_freq)) + pump_noise
             dfr = self.target_dfr + (noise * 0.5)
 
             # Resistance of filter based on clot factor
