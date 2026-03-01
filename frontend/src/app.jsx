@@ -53,8 +53,8 @@ export default function App() {
               "flex items-center gap-2 hover:bg-[#2f2f2f] rounded-lg cursor-pointer transition-colors duration-200",
               sidebarCollapsed ? "px-1.5 py-1.5 justify-center" : "px-2 py-1.5"
             )} onClick={() => sidebarCollapsed && setSidebarCollapsed(false)}>
-              <div className="h-6 w-6 rounded bg-white text-black flex items-center justify-center font-bold text-xs shrink-0">V</div>
-              {!sidebarCollapsed && <span className="text-sm font-medium text-white">VitaBlueprint</span>}
+              <div className="h-6 w-6 rounded bg-teal-500 text-white flex items-center justify-center font-bold text-[10px] shrink-0 tracking-tight">CD</div>
+              {!sidebarCollapsed && <span className="text-sm font-medium text-white">ClenDesign</span>}
             </div>
             {/* ChatGPT style New Chat button */}
             {!sidebarCollapsed && (
@@ -165,8 +165,8 @@ export default function App() {
         {/* Mobile Header */}
         <header className="h-12 border-b border-[#2f2f2f] flex items-center justify-between px-4 md:hidden bg-[#212121] sticky top-0 z-10">
           <div className="flex items-center gap-2">
-            <div className="h-6 w-6 rounded bg-white text-black flex items-center justify-center font-bold text-xs">V</div>
-            <h1 className="text-sm font-medium text-white">VitaBlueprint</h1>
+            <div className="h-6 w-6 rounded bg-teal-500 text-white flex items-center justify-center font-bold text-[10px] tracking-tight">CD</div>
+            <h1 className="text-sm font-medium text-white">ClenDesign</h1>
           </div>
           <select
             value={deviceType}

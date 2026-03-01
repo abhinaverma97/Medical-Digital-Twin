@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { getTraceability, generateCodeRepo } from '../api'
-import { ShieldCheck, Code, CheckCircle2, Clock, AlertCircle, AlertTriangle, RefreshCw } from 'lucide-react'
+import { getTraceability, downloadCodeZip, downloadDesignPdf } from '../api'
+import { ShieldCheck, Download, FileText, CheckCircle2, AlertCircle, AlertTriangle, RefreshCw } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -12,12 +12,25 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
+// Shared helper: creates a temporary <a> and triggers a browser file download
+function _triggerBlobDownload(data, contentDisposition, fallbackName, mimeType) {
+  const url = window.URL.createObjectURL(new Blob([data], { type: mimeType }))
+  const link = document.createElement('a')
+  const match = (contentDisposition || '').match(/filename="?([^"]+)"?/)
+  link.download = match ? match[1] : fallbackName
+  link.href = url
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.URL.revokeObjectURL(url)
+}
+
 export default function TraceabilityTable({ deviceType }) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [genLoading, setGenLoading] = useState(false)
-  const [genPath, setGenPath] = useState(null)
+  const [pdfLoading, setPdfLoading] = useState(false)
 
   const loadData = async () => {
     setLoading(true)
@@ -33,17 +46,29 @@ export default function TraceabilityTable({ deviceType }) {
     }
   }
 
-  const handleGenerateCode = async () => {
+  const handleExportZip = async () => {
     setGenLoading(true)
     try {
-      const res = await generateCodeRepo()
-      setGenPath(res.data.path)
+      const res = await downloadCodeZip()
+      _triggerBlobDownload(res.data, res.headers?.['content-disposition'], 'codebase.zip', 'application/zip')
     } catch (err) {
-      console.error('CODEGEN_ERROR:', err)
-      const detail = err.response?.data?.detail || 'Code generation failed.'
-      alert(typeof detail === 'string' ? detail : JSON.stringify(detail))
+      console.error('ZIP_EXPORT_ERROR:', err)
+      alert('Failed to export code. Ensure you have built the design first.')
     } finally {
       setGenLoading(false)
+    }
+  }
+
+  const handleDownloadPdf = async () => {
+    setPdfLoading(true)
+    try {
+      const res = await downloadDesignPdf()
+      _triggerBlobDownload(res.data, res.headers?.['content-disposition'], 'system_design.pdf', 'application/pdf')
+    } catch (err) {
+      console.error('PDF_EXPORT_ERROR:', err)
+      alert('Failed to generate PDF. Ensure you have built the design first.')
+    } finally {
+      setPdfLoading(false)
     }
   }
 
@@ -61,21 +86,16 @@ export default function TraceabilityTable({ deviceType }) {
           <Button variant="outline" onClick={loadData} className="gap-2 bg-transparent border-white/10 hover:bg-white/5">
             <RefreshCw className="h-4 w-4" /> Refresh
           </Button>
-          <Button onClick={handleGenerateCode} disabled={genLoading} className="gap-2 bg-teal-600 hover:bg-teal-700 text-white border-transparent">
-            {genLoading ? <Clock className="h-4 w-4 animate-spin" /> : <Code className="h-4 w-4" />}
-            Generate Code Repository
+          <Button onClick={handleDownloadPdf} disabled={pdfLoading} className="gap-2 bg-slate-700 hover:bg-slate-600 text-white border-transparent">
+            <FileText className={`h-4 w-4 ${pdfLoading ? 'animate-bounce' : ''}`} />
+            {pdfLoading ? 'Generating PDF...' : 'Download Design PDF'}
+          </Button>
+          <Button onClick={handleExportZip} disabled={genLoading} className="gap-2 bg-teal-600 hover:bg-teal-700 text-white border-transparent">
+            <Download className={`h-4 w-4 ${genLoading ? 'animate-bounce' : ''}`} />
+            {genLoading ? 'Generating ZIP...' : 'Export Code as ZIP'}
           </Button>
         </div>
       </div>
-
-      {genPath && (
-        <div className="p-4 border border-teal-500/50 bg-teal-500/10 rounded-xl flex items-center justify-between text-sm text-teal-500 font-medium">
-          <span>
-            <strong>Repo Generated!</strong> Target path: <code className="text-xs bg-black/30 px-2 py-1 rounded ml-2 text-teal-400">{genPath}</code>
-          </span>
-          <button onClick={() => setGenPath(null)} className="text-teal-500/70 hover:text-teal-400">&times;</button>
-        </div>
-      )}
 
       {error && (
         <div className="p-4 border border-destructive/50 bg-destructive/10 rounded-xl flex items-center gap-3 text-sm text-destructive font-medium">
@@ -101,30 +121,30 @@ export default function TraceabilityTable({ deviceType }) {
               {data.map((entry, idx) => {
                 const riskStatus = entry['Risk Status']
                 const riskAccept = entry['Risk Acceptability']
-                const hazard     = entry['Hazard']
+                const hazard = entry['Hazard']
 
                 // Show risk data for ANY req that actually has it populated
-                const hasHazard  = hazard && hazard !== 'N/A' && hazard !== '—'
-                const hasRisk    = riskStatus && riskStatus !== 'N/A'
-                const hasAccept  = riskAccept && riskAccept !== 'N/A'
+                const hasHazard = hazard && hazard !== 'N/A' && hazard !== '—'
+                const hasRisk = riskStatus && riskStatus !== 'N/A'
+                const hasAccept = riskAccept && riskAccept !== 'N/A'
 
                 const statusColor =
-                  riskStatus === 'CLOSED'            ? 'text-teal-400 bg-teal-500/10 border-teal-500/30' :
-                  riskStatus?.startsWith('ALARP')     ? 'text-amber-400 bg-amber-500/10 border-amber-500/30' :
-                  riskStatus?.startsWith('OPEN')      ? 'text-red-400 bg-red-500/10 border-red-500/30' :
-                                                        'text-[#555] bg-[#2f2f2f] border-white/5'
+                  riskStatus === 'CLOSED' ? 'text-teal-400 bg-teal-500/10 border-teal-500/30' :
+                    riskStatus?.startsWith('ALARP') ? 'text-amber-400 bg-amber-500/10 border-amber-500/30' :
+                      riskStatus?.startsWith('OPEN') ? 'text-red-400 bg-red-500/10 border-red-500/30' :
+                        'text-[#555] bg-[#2f2f2f] border-white/5'
 
                 const acceptIcon =
-                  riskAccept === 'ACCEPTABLE'  ? <CheckCircle2 className="h-4 w-4 text-teal-500 flex-shrink-0" /> :
-                  riskAccept === 'ALARP'        ? <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0" /> :
-                  riskAccept === 'UNACCEPTABLE' ? <AlertCircle  className="h-4 w-4 text-red-500 flex-shrink-0" /> :
-                                                  null
+                  riskAccept === 'ACCEPTABLE' ? <CheckCircle2 className="h-4 w-4 text-teal-500 flex-shrink-0" /> :
+                    riskAccept === 'ALARP' ? <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0" /> :
+                      riskAccept === 'UNACCEPTABLE' ? <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0" /> :
+                        null
 
                 const acceptColor =
-                  riskAccept === 'ACCEPTABLE'  ? 'text-teal-400' :
-                  riskAccept === 'ALARP'        ? 'text-amber-400' :
-                  riskAccept === 'UNACCEPTABLE' ? 'text-red-400' :
-                                                  'text-[#555]'
+                  riskAccept === 'ACCEPTABLE' ? 'text-teal-400' :
+                    riskAccept === 'ALARP' ? 'text-amber-400' :
+                      riskAccept === 'UNACCEPTABLE' ? 'text-red-400' :
+                        'text-[#555]'
 
                 return (
                   <TableRow key={idx} className="border-b border-white/5 hover:bg-white/5 data-[state=selected]:bg-muted">
@@ -173,7 +193,7 @@ export default function TraceabilityTable({ deviceType }) {
                       {hasRisk ? (
                         <span className={`text-[10px] px-2 py-1 rounded border font-bold ${statusColor}`}>
                           {riskStatus.startsWith('ALARP') ? 'ALARP' :
-                           riskStatus.startsWith('OPEN')  ? 'OPEN'  : riskStatus}
+                            riskStatus.startsWith('OPEN') ? 'OPEN' : riskStatus}
                         </span>
                       ) : (
                         <span className="text-[10px] text-[#444] italic">—</span>
