@@ -2,6 +2,9 @@
 
 **Digital Twin** is a professional, deterministic medical device system design and compliance tool. It allows engineers to transition seamlessly from structured requirements to validated system architectures and digital twin simulations, ending with one-click code generation for embedded targets.
 
+# Deployment Link
+- http://129.154.227.67/
+
 ## 🚀 Key Features
 
 - **Multi-Device Support**: Optimized for Class I (Pulse Oximeter), Class II (Ventilator), and Class III (Hemodialysis) medical devices.
@@ -23,8 +26,6 @@
 ### Prerequisites
 - **Python 3.10+**
 - **Node.js 18+**
-- **Graphviz**: Required for diagram rendering.
-  - **Windows**: [Download and Install](https://graphviz.org/download/) (Ensure you add it to the system **PATH** during installation).
 - **GROQ API Key**: Required for LLM-powered requirements analysis and design generation.
   - Sign up at [console.groq.com](https://console.groq.com)
   - Create a `.env` file in the project root with your API key
@@ -160,4 +161,3 @@ This script will detect existing data and only update what's changed. Note that 
 
 ---
 
-© 2026 VitaBlueprint Engine — Industry-Grade System Engineering
