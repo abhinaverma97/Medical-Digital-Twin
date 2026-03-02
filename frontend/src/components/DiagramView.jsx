@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react'
 import { buildDesign, generateDesignDetails, getDetailedDesign, getVerificationMatrix } from '../api'
 
 import { Button } from '@/components/ui/button'
-import { GitBranch, AlertCircle, Maximize2, Cpu, Code, Server, Activity, ShieldAlert, Link, Thermometer, ActivitySquare, BrainCircuit, MonitorPlay } from 'lucide-react'
+import { GitBranch, AlertCircle, Maximize2, Cpu, Code, Server, Activity, ShieldAlert, Link, Thermometer, ActivitySquare, BrainCircuit, MonitorPlay, ClipboardList } from 'lucide-react'
 import { cn } from "@/lib/utils"
 
 import { RenderTable, SectionHeader, InfoBox } from './DiagramViewHelper'
@@ -107,7 +107,7 @@ const TABS = [
   { id: 'verification', label: 'Verification Matrix', icon: ShieldAlert, iec: 'FDA 820.30(g)' },
 ]
 
-export default function DiagramView({ deviceType, onDesignReady, setView }) {
+export default function DiagramView({ deviceType, onDesignReady, setView, hasSubmittedReqs }) {
   const [loading, setLoading] = useState(false)
   const [loadingStatus, setLoadingStatus] = useState('')
   const [error, setError] = useState(null)
@@ -559,6 +559,24 @@ export default function DiagramView({ deviceType, onDesignReady, setView }) {
         )
       default: return null
     }
+  }
+
+  if (!hasSubmittedReqs) {
+    return (
+      <div className="space-y-6 w-full h-full flex flex-col">
+        <div className="flex items-center justify-between pb-4 border-b border-white/5 flex-shrink-0">
+          <h2 className="text-2xl font-semibold tracking-tight">Interactive Systems Engineering Dashboard</h2>
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center py-32 text-center rounded-2xl border-2 border-dashed border-white/5">
+          <ClipboardList className="h-12 w-12 text-muted-foreground/30 mb-4" />
+          <p className="text-muted-foreground text-sm font-medium">No requirements submitted yet.</p>
+          <p className="text-muted-foreground text-xs mt-1">Please submit requirements first to synthesize the system architecture.</p>
+          <Button onClick={() => setView('requirements')} className="mt-6 gap-2 bg-white text-black hover:bg-white/90">
+            Go to Requirements Intake
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (

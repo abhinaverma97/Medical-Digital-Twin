@@ -30,6 +30,7 @@ export default function App() {
   const [deviceType, setDeviceType] = useState('ventilator')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [designData, setDesignData] = useState(null)
+  const [hasSubmittedReqs, setHasSubmittedReqs] = useState(false)
 
   const navItems = [
     { id: 'requirements', label: 'Requirements', icon: ClipboardList },
@@ -180,14 +181,14 @@ export default function App() {
         {/* Dynamic View Area */}
         {view === 'simulation' ? (
           <div className="flex-1 overflow-hidden flex flex-col">
-            <ProfessionalSimulator deviceType={deviceType} designData={designData} />
+            <ProfessionalSimulator deviceType={deviceType} designData={designData} setView={setView} />
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto">
             <div className="w-full h-full min-h-[600px] p-4 md:p-6 lg:p-10 pt-6 md:pt-10">
-              {view === 'requirements' && <RequirementsForm deviceType={deviceType} setView={setView} />}
-              {view === 'design' && <DiagramView deviceType={deviceType} onDesignReady={setDesignData} setView={setView} />}
-              {view === 'trace' && <TraceabilityTable deviceType={deviceType} />}
+              {view === 'requirements' && <RequirementsForm deviceType={deviceType} setView={setView} onReqSubmit={() => setHasSubmittedReqs(true)} />}
+              {view === 'design' && <DiagramView deviceType={deviceType} onDesignReady={setDesignData} setView={setView} hasSubmittedReqs={hasSubmittedReqs} />}
+              {view === 'trace' && <TraceabilityTable deviceType={deviceType} hasSubmittedReqs={hasSubmittedReqs} setView={setView} />}
             </div>
           </div>
         )}

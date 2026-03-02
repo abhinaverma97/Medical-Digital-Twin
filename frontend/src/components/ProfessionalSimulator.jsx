@@ -3,7 +3,7 @@ import {
     Play, Pause, RotateCcw, Activity, Zap, AlertTriangle,
     Save, Cpu, ShieldCheck, Database, FastForward, Clock,
     Sliders, Bell, CheckCircle2, ChevronDown, ChevronRight, ChevronLeft,
-    ExternalLink, Info, BookOpen, SkipForward
+    ExternalLink, Info, BookOpen, SkipForward, GitBranch, ClipboardList
 } from 'lucide-react';
 import {
     AreaChart, Area, LineChart, Line, XAxis, YAxis,
@@ -438,7 +438,23 @@ function AnalysisPanel({ deviceConfig, fidelity, onInjectFault, safetyLog, scena
 
 // ─── Root Component ───────────────────────────────────────────────────────────
 
-export default function ProfessionalSimulator({ deviceType, designData }) {
+export default function ProfessionalSimulator({ deviceType, designData, setView }) {
+    if (!designData) {
+        return (
+            <div className="flex-1 flex flex-col items-center justify-center text-center bg-[#212121] p-10 h-full">
+                <GitBranch className="h-16 w-16 text-muted-foreground/20 mb-6" />
+                <h2 className="text-2xl font-bold text-white mb-2">Digital Twin Offline</h2>
+                <p className="text-muted-foreground text-sm max-w-md mx-auto mb-8">
+                    The simulator requires a valid system architecture to initialize the physics engine and control loops.
+                    Please construct the design graph first.
+                </p>
+                <Button onClick={() => setView('design')} className="gap-2 bg-white text-black hover:bg-white/90">
+                    Go to Design Graph
+                </Button>
+            </div>
+        );
+    }
+
     const key = deviceKey(deviceType);
     const cfg = useMemo(() => {
         if (designData) return buildSimConfigFromDesign(key, designData);

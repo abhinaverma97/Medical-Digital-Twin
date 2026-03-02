@@ -115,8 +115,8 @@ const INITIAL_STATE = {
 	verification: { method: 'simulation', description: '' }
 }
 
-export default function RequirementsForm({ deviceType, setView }) {
-	const [req, setReq] = useState(INITIAL_STATE)
+export default function RequirementsForm({ deviceType, setView, onReqSubmit }) {
+	const [req, setReq] = useState({ ...INITIAL_STATE })
 	const [loading, setLoading] = useState(false)
 	const [msg, setMsg] = useState(null)
 	const [submittedReqs, setSubmittedReqs] = useState([])
@@ -180,6 +180,8 @@ export default function RequirementsForm({ deviceType, setView }) {
 			await addRequirement(payload)
 			setMsg({ type: 'success', text: `Requirement ${enriched.id} added successfully.` })
 			setSubmittedReqs(prev => [payload, ...prev].slice(0, 5))
+
+			if (onReqSubmit) onReqSubmit()
 
 			// Navigate to the design page after a short delay for UX
 			if (setView) {
@@ -289,21 +291,8 @@ export default function RequirementsForm({ deviceType, setView }) {
 					</div>
 
 					<div className="space-y-4">
-						<div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+						<div className="grid grid-cols-1 gap-4">
 							<div className="space-y-1">
-								<Label className="text-xs text-[#878787] font-medium">Status</Label>
-								<Select value={req.status} onValueChange={v => setReq({ ...req, status: v })}>
-									<SelectTrigger className="bg-[#171717] border-white/10 focus-visible:ring-1 focus-visible:ring-white/20 text-[#ececec]">
-										<SelectValue placeholder="Select status..." />
-									</SelectTrigger>
-									<SelectContent className="bg-[#171717] border-white/10 text-white">
-										<SelectItem value="draft">Draft</SelectItem>
-										<SelectItem value="review">Under Review</SelectItem>
-										<SelectItem value="approved">Approved</SelectItem>
-									</SelectContent>
-								</Select>
-							</div>
-							<div className="space-y-1 md:col-span-3">
 								<Label className="text-xs text-[#878787] font-medium">Target Subsystem</Label>
 								<Input list="subsystems" className="bg-[#171717] border-white/10 focus-visible:ring-1 focus-visible:ring-white/20 text-[#ececec]" value={req.subsystem} onChange={e => setReq({ ...req, subsystem: e.target.value })} placeholder="e.g. Blower Control" />
 								<datalist id="subsystems">

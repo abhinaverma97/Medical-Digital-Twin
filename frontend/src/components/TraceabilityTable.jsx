@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { getTraceability, downloadCodeZip, downloadDesignPdf } from '../api'
-import { ShieldCheck, Download, FileText, CheckCircle2, AlertCircle, AlertTriangle, RefreshCw } from 'lucide-react'
+import { ShieldCheck, Download, FileText, CheckCircle2, AlertCircle, AlertTriangle, RefreshCw, ClipboardList } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -25,7 +25,7 @@ function _triggerBlobDownload(data, contentDisposition, fallbackName, mimeType) 
   window.URL.revokeObjectURL(url)
 }
 
-export default function TraceabilityTable({ deviceType }) {
+export default function TraceabilityTable({ deviceType, hasSubmittedReqs, setView }) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -97,7 +97,7 @@ export default function TraceabilityTable({ deviceType }) {
         </div>
       </div>
 
-      {error && (
+      {error && hasSubmittedReqs && (
         <div className="p-4 border border-destructive/50 bg-destructive/10 rounded-xl flex items-center gap-3 text-sm text-destructive font-medium">
           <AlertTriangle className="h-5 w-5" />
           {error}
@@ -105,7 +105,16 @@ export default function TraceabilityTable({ deviceType }) {
       )}
 
       <div className="border border-white/5 rounded-2xl overflow-hidden bg-[#1a1a1a]">
-        {data ? (
+        {!hasSubmittedReqs ? (
+          <div className="flex flex-col items-center justify-center text-center py-32 text-muted-foreground bg-transparent">
+            <ClipboardList className="h-12 w-12 opacity-20 mb-4" />
+            <p className="text-sm font-medium">No requirements submitted yet.</p>
+            <p className="text-xs mt-1">Please submit requirements first to compile traceability data.</p>
+            <Button onClick={() => setView('requirements')} className="mt-6 gap-2 bg-white text-black hover:bg-white/90">
+              Go to Requirements Intake
+            </Button>
+          </div>
+        ) : data ? (
           <Table>
             <TableHeader className="bg-[#2f2f2f]/30 border-b border-white/5">
               <TableRow className="hover:bg-transparent text-[11px] font-bold tracking-widest uppercase border-none">
@@ -234,10 +243,15 @@ export default function TraceabilityTable({ deviceType }) {
           <div className="flex flex-col items-center justify-center text-center py-32 text-muted-foreground bg-transparent">
             <ShieldCheck className="h-12 w-12 opacity-20 mb-4" />
             <p className="text-sm font-medium">
-              {loading ? 'Crunching compliance data...' : 'No traceability data available.'}
+              {loading ? 'Crunching compliance data...' : 'Architecture construction needed.'}
             </p>
             {!loading && (
-              <p className="text-xs mt-1">Build design and run the simulation first.</p>
+              <p className="text-xs mt-1">Please construct the Design Graph first to compile compliance mapping.</p>
+            )}
+            {!loading && (
+              <Button onClick={() => setView('design')} className="mt-6 gap-2 bg-white text-black hover:bg-white/90">
+                Go to Design Graph
+              </Button>
             )}
           </div>
         )}
