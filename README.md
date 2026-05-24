@@ -2,7 +2,7 @@
 
 **Digital Twin** is a professional, deterministic medical device system design and compliance tool. It allows engineers to transition seamlessly from structured requirements to validated system architectures and digital twin simulations, ending with one-click code generation for embedded targets.
 
-## 🚀 Key Features
+## Key Features
 
 - **Multi-Device Support**: Optimized for Class I (Pulse Oximeter), Class II (Ventilator), and Class III (Hemodialysis) medical devices.
 - **Authority-Based RAG System**: Intelligent knowledge base with 1900+ documents prioritizing ISO 60601-1 (electrical safety), ISO 62366-2 (usability), FDA guidance, and peer-reviewed medical literature over code templates.
@@ -18,7 +18,7 @@
 
 ---
 
-## 🛠️ Local Setup
+## Local Setup
 
 ### Prerequisites
 - **Python 3.10+**
@@ -71,7 +71,7 @@
 
 ---
 
-## 🧠 RAG Knowledge Base
+## RAG Knowledge Base
 
 The system uses an **authority-weighted retrieval-augmented generation (RAG)** architecture to ground all LLM outputs in regulatory standards and peer-reviewed sources.
 
@@ -107,7 +107,7 @@ This script will detect existing data and only update what's changed. Note that 
 
 ---
 
-## ⚙️ Project Structure
+## Project Structure
 
 - `backend/`: FastAPI application, core logic, and device models.
   - `app/core/retrieval/`: RAG indexer, retriever, and database schema.
@@ -130,7 +130,7 @@ This script will detect existing data and only update what's changed. Note that 
 
 ---
 
-## 📖 How to Use
+## How to Use
 
 1.  **Select Device**: Use the header dropdown to choose between Ventilator, Pulse Oximeter, or Hemodialysis.
 2.  **Add Requirements**: 
@@ -149,7 +149,7 @@ This script will detect existing data and only update what's changed. Note that 
 
 ---
 
-## ⚙️ Project Structure
+## Project Structure
 
 - `backend/`: FastAPI application, core logic, and device models.
 - `frontend/`: React + Vite + Tailwind CSS application.
