@@ -2,9 +2,6 @@
 
 **Digital Twin** is a professional, deterministic medical device system design and compliance tool. It allows engineers to transition seamlessly from structured requirements to validated system architectures and digital twin simulations, ending with one-click code generation for embedded targets.
 
-# Deployment Link
-http://129.154.227.67/
-
 ## 🚀 Key Features
 
 - **Multi-Device Support**: Optimized for Class I (Pulse Oximeter), Class II (Ventilator), and Class III (Hemodialysis) medical devices.
